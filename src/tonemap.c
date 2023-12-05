@@ -557,6 +557,7 @@ void VS_CC VSPlaceboTMCreate(const VSMap *in, VSMap *out, void *userData, VSCore
 #if PL_API_VER >= 264
     COLORM_PARAM(show_clipping, Int)
 #endif
+    COLORM_PARAM(contrast_recovery, Float)
 
     struct pl_peak_detect_params *peakDetectParams = malloc(sizeof(struct pl_peak_detect_params));
     *peakDetectParams = pl_peak_detect_default_params;

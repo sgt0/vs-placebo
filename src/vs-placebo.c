@@ -103,6 +103,7 @@ VS_EXTERNAL_API(void) VapourSynthPluginInit(VSConfigPlugin configFunc, VSRegiste
                             "metadata:int:opt;"
                             "use_dovi:int:opt;"
                             "visualize_lut:int:opt;show_clipping:int:opt;"
+                            "contrast_recovery:float:opt;"
                             "log_level:int:opt;", VSPlaceboTMCreate, 0, plugin);
 
     registerFunc("Shader", "clip:clip;shader:data:opt;width:int:opt;height:int:opt;chroma_loc:int:opt;matrix:int:opt;trc:int:opt;"
