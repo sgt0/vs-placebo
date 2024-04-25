@@ -526,11 +526,9 @@ void VS_CC VSPlaceboTMCreate(const VSMap *in, VSMap *out, void *userData, VSCore
 
     // Tone mapping function
     int64_t function_index = vsapi->propGetInt(in, "tone_mapping_function", 0, &err);
-
-    if (function_index >= pl_num_tone_map_functions) {
-        function_index = 0;
+    if (!err && function_index >= 0 && function_index < pl_num_tone_map_functions) {
+        colorMapParams->tone_mapping_function = pl_tone_map_functions[function_index];
     }
-    colorMapParams->tone_mapping_function = pl_tone_map_functions[function_index];
 
     const char *function_name = vsapi->propGetData(in, "tone_mapping_function_s", 0, &err);
     if (function_name && !err) {
