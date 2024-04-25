@@ -113,7 +113,7 @@ it will only be executed when `linearize = True`.
 - `shader`: Path to shader file.
 - `shader_s`: Alternatively, String containing the shader. (`shader` takes precedence.)
 - `width, height`: Output dimensions. Need to be specified for scaling shaders to be run. 
-Any planes the shader doesn’t scale appropiately will be scaled to output res by libplacebo
+Any planes the shader doesn’t scale appropriately will be scaled to output res by libplacebo
 using the supplied filter options, which are identical to `Resample`’s.
 (To be exact, chroma will be scaled to what the luma prescaler outputs
 (or the source luma res); then the image will be scaled to output res in RGB and converted back to YUV.)
