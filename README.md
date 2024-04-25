@@ -18,7 +18,7 @@ see the libplacebo header files.
 
 &nbsp;
 
-#### `placebo.Tonemap(clip clip[, int src_csp, int dst_csp, int dst_prim, float src_max, float src_min, float dst_max, float dst_min, int dynamic_peak_detection, float smoothing_period, float scene_threshold_low, float scene_threshold_high, float percentile, int tone_mapping_function, float tone_mapping_param, bool use_dovi, bool visualize_lut])`
+#### `placebo.Tonemap(clip clip[, int src_csp, int dst_csp, int dst_prim, float src_max, float src_min, float dst_max, float dst_min, int dynamic_peak_detection, float smoothing_period, float scene_threshold_low, float scene_threshold_high, float percentile, int gamut_mapping, int tone_mapping_function, float tone_mapping_param, bool use_dovi, bool visualize_lut])`
 
 Performs color mapping (which includes tonemapping from HDR to SDR, but can do a lot more).  
 Expects RGB48 or YUVxxxP16 input.  
@@ -39,6 +39,21 @@ For example, to map from [BT.2020, PQ] (HDR) to traditional [BT.709, BT.1886] (S
     clipping of very bright details, but can improve the dynamic brightness
     range of scenes with very bright isolated highlights.
     Defaults to `100.0`.
+- `gamut_mapping`: Gamut mapping function to use to handle out-of-gamut colors,
+including colors which are out-of-gamut as a consequence of tone mapping.
+Defaults to 1 (`perceptual`). The following options are available:
+    | Value | Function | Description |
+    | ----- | -------- | ----------- |
+    | 0 | clip | Performs no gamut-mapping, just hard clips out-of-range colors per-channel. |
+    | 1 | perceptual | Performs a perceptually balanced (saturation) gamut mapping, using a soft knee function to preserve in-gamut colors, followed by a final softclip operation. This works bidirectionally, meaning it can both compress and expand the gamut. Behaves similar to a blend of `saturation` and `softclip`. |
+    | 2 | softclip | Performs a perceptually balanced gamut mapping using a soft knee function to roll-off clipped regions, and a hue shifting function to preserve saturation. |
+    | 3 | relative | Performs relative colorimetric clipping, while maintaining an exponential relationship between brightness and chromaticity. |
+    | 4 | saturation | Performs simple RGB->RGB saturation mapping. The input R/G/B channels are mapped directly onto the output R/G/B channels. Will never clip, but will distort all hues and/or result in a faded look. |
+    | 5 | absolute | Performs absolute colorimetric clipping. Like `relative`, but does not adapt the white point. |
+    | 6 | desaturate | Performs constant-luminance colorimetric clipping, desaturing colors towards white until they're in-range. |
+    | 7 | darken | Uniformly darkens the input slightly to prevent clipping on blown-out highlights, then clamps colorimetrically to the input gamut boundary, biased slightly to preserve chromaticity over luminance. |
+    | 8 | highlight | Performs no gamut mapping, but simply highlights out-of-gamut pixels. |
+    | 9 | linear | Linearly/uniformly desaturates the image in order to bring the entire image into the target gamut. |
 - `tone_mapping_function, tone_mapping_param, metadata`:
  [Color mapping params](https://github.com/haasn/libplacebo/blob/master/src/include/libplacebo/shaders/colorspace.h#L261).
 - `tone_mapping_function_s`: Tone mapping function name, overwrites `tone_mapping_function` number.
