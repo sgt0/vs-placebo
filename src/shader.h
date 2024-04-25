@@ -1,7 +1,7 @@
 #ifndef VS_PLACEBO_SHADER_H
 #define VS_PLACEBO_SHADER_H
 
-#include "VapourSynth.h"
+#include <VapourSynth4.h>
 
 void VS_CC VSPlaceboShaderCreate(const VSMap *in, VSMap *out, void *userData, VSCore *core, const VSAPI *vsapi);
 

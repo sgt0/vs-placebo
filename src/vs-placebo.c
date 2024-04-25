@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 
-#include "VapourSynth.h"
+#include <VapourSynth4.h>
 
 #include "vs-placebo.h"
 #include "deband.h"
@@ -21,7 +21,7 @@ void *VSPlaceboInit(enum pl_log_level log_level) {
     ));
 
     if (!p->log) {
-        fprintf(stderr, "Failed initializing libplacebo\n");
+        fprintf_s(stderr, "Failed initializing libplacebo\n");
         goto error;
     }
 
@@ -32,7 +32,7 @@ void *VSPlaceboInit(enum pl_log_level log_level) {
     p->vk = pl_vulkan_create(p->log, &vp);
 
     if (!p->vk) {
-        fprintf(stderr, "Failed creating vulkan context\n");
+        fprintf_s(stderr, "Failed creating vulkan context\n");
         goto error;
     }
 
@@ -41,13 +41,13 @@ void *VSPlaceboInit(enum pl_log_level log_level) {
 
     p->dp = pl_dispatch_create(p->log, p->gpu);
     if (!p->dp) {
-        fprintf(stderr, "Failed creating shader dispatch object\n");
+        fprintf_s(stderr, "Failed creating shader dispatch object\n");
         goto error;
     }
 
     p->rr = pl_renderer_create(p->log, p->gpu);
     if (!p->rr) {
-        fprintf(stderr, "Failed creating renderer\n");
+        fprintf_s(stderr, "Failed creating renderer\n");
         goto error;
     }
 
@@ -75,19 +75,27 @@ void VSPlaceboUninit(void *priv)
     free(p);
 }
 
-VS_EXTERNAL_API(void) VapourSynthPluginInit(VSConfigPlugin configFunc, VSRegisterFunction registerFunc, VSPlugin *plugin) {
-    configFunc("com.vs.placebo", "placebo", "libplacebo plugin for VapourSynth", VAPOURSYNTH_API_VERSION, 1, plugin);
-    registerFunc("Deband", "clip:clip;planes:int:opt;iterations:int:opt;threshold:float:opt;"
+VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI *vspapi) {
+    vspapi->configPlugin(
+        "com.vs.placebo", 
+        "placebo", 
+        "libplacebo plugin for VapourSynth", 
+        VS_MAKE_VERSION(2, 0), 
+        VAPOURSYNTH_API_VERSION, 
+        0, 
+        plugin
+    );
+    vspapi->registerFunction("Deband", "clip:vnode;planes:int:opt;iterations:int:opt;threshold:float:opt;"
                            "radius:float:opt;grain:float:opt;dither:int:opt;dither_algo:int:opt;"
-                           "log_level:int:opt;", VSPlaceboDebandCreate, 0, plugin);
+                           "log_level:int:opt;", "clip:vnode;", VSPlaceboDebandCreate, 0, plugin);
 
-    registerFunc("Resample", "clip:clip;width:int;height:int;filter:data:opt;clamp:float:opt;blur:float:opt;"
+    vspapi->registerFunction("Resample", "clip:vnode;width:int;height:int;filter:data:opt;clamp:float:opt;blur:float:opt;"
                              "taper:float:opt;radius:float:opt;param1:float:opt;param2:float:opt;"
                              "sx:float:opt;sy:float:opt;antiring:float:opt;lut_entries:int:opt;cutoff:float:opt;"
                              "sigmoidize:int:opt;sigmoid_center:float:opt;sigmoid_slope:float:opt;linearize:int:opt;trc:int:opt;"
-                             "log_level:int:opt;", VSPlaceboResampleCreate, 0, plugin);
+                             "log_level:int:opt;", "clip:vnode;", VSPlaceboResampleCreate, 0, plugin);
 
-    registerFunc("Tonemap", "clip:clip;"
+    vspapi->registerFunction("Tonemap", "clip:vnode;"
                             "src_csp:int:opt;dst_csp:int:opt;"
                             "dst_prim:int:opt;"
                             "src_max:float:opt;src_min:float:opt;"
@@ -102,12 +110,12 @@ VS_EXTERNAL_API(void) VapourSynthPluginInit(VSConfigPlugin configFunc, VSRegiste
                             "use_dovi:int:opt;"
                             "visualize_lut:int:opt;show_clipping:int:opt;"
                             "contrast_recovery:float:opt;"
-                            "log_level:int:opt;", VSPlaceboTMCreate, 0, plugin);
+                            "log_level:int:opt;", "clip:vnode;", VSPlaceboTMCreate, 0, plugin);
 
-    registerFunc("Shader", "clip:clip;shader:data:opt;width:int:opt;height:int:opt;chroma_loc:int:opt;matrix:int:opt;trc:int:opt;"
+    vspapi->registerFunction("Shader", "clip:vnode;shader:data:opt;width:int:opt;height:int:opt;chroma_loc:int:opt;matrix:int:opt;trc:int:opt;"
                            "linearize:int:opt;sigmoidize:int:opt;sigmoid_center:float:opt;sigmoid_slope:float:opt;"
                            "lut_entries:int:opt;antiring:float:opt;"
                            "filter:data:opt;clamp:float:opt;blur:float:opt;taper:float:opt;radius:float:opt;"
                            "param1:float:opt;param2:float:opt;shader_s:data:opt;"
-                           "log_level:int:opt;", VSPlaceboShaderCreate, 0, plugin);
+                           "log_level:int:opt;", "clip:vnode;", VSPlaceboShaderCreate, 0, plugin);
 }

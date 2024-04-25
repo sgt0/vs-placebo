@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "VapourSynth.h"
+#include <VapourSynth4.h>
 
 #include "libp2p/p2p_api.h"
 #include <libplacebo/shaders/custom.h>
@@ -14,10 +14,11 @@
 #include "shader.h"
 
 typedef  struct {
-    VSNodeRef *node;
+    VSNode *node;
     int width;
     int height;
     const VSVideoInfo *vi;
+    VSVideoInfo vi_out;
     struct priv *vf;
     const struct pl_hook *shader;
     enum pl_color_system matrix;
@@ -55,7 +56,7 @@ bool vspl_shader_do_plane(struct priv *p, void *data, int n, struct pl_plane *pl
         .color = csp,
     };
 
-    if (d->vi->format->subSamplingW || d->vi->format->subSamplingH) {
+    if (d->vi->format.subSamplingW || d->vi->format.subSamplingH) {
         pl_frame_set_chroma_location(&img, d->chromaLocation);
     }
 
@@ -85,7 +86,7 @@ bool vspl_shader_do_plane(struct priv *p, void *data, int n, struct pl_plane *pl
     return pl_render_image(p->rr, &img, &out, &renderParams);
 }
 
-bool vspl_shader_reconfig(void *priv, struct pl_plane_data *data, const VSAPI *vsapi, ShaderData *d)
+bool vspl_shader_reconfig(void *priv, struct pl_plane_data *data, VSCore *core, const VSAPI *vsapi, ShaderData *d)
 {
     struct priv *p = priv;
 
@@ -93,7 +94,7 @@ bool vspl_shader_reconfig(void *priv, struct pl_plane_data *data, const VSAPI *v
     for (int j = 0; j < 3; ++j) {
         fmt[j] = pl_plane_find_fmt(p->gpu, NULL, &data[j]);
         if (!fmt[j]) {
-            vsapi->logMessage(mtCritical, "Failed configuring filter: no good texture format!\n");
+            vsapi->logMessage(mtCritical, "Failed configuring filter: no good texture format!\n", core);
             return false;
         }
     }
@@ -128,14 +129,14 @@ bool vspl_shader_reconfig(void *priv, struct pl_plane_data *data, const VSAPI *v
     ));
 
     if (!ok) {
-        vsapi->logMessage(mtCritical, "Failed creating GPU textures!\n");
+        vsapi->logMessage(mtCritical, "Failed creating GPU textures!\n", core);
         return false;
     }
 
     return true;
 }
 
-bool vspl_shader_filter(void *priv, void *dst, struct pl_plane_data *src,  ShaderData *d, int n, const VSAPI *vsapi)
+bool vspl_shader_filter(void *priv, void *dst, struct pl_plane_data *src,  ShaderData *d, int n, VSCore *core, const VSAPI *vsapi)
 {
     struct priv *p = priv;
     // Upload planes
@@ -147,13 +148,13 @@ bool vspl_shader_filter(void *priv, void *dst, struct pl_plane_data *src,  Shade
     }
 
     if (!ok) {
-        vsapi->logMessage(mtCritical, "Failed uploading data to the GPU!\n");
+        vsapi->logMessage(mtCritical, "Failed uploading data to the GPU!\n", core);
         return false;
     }
 
     // Process plane
     if (!vspl_shader_do_plane(p, d, n, planes)) {
-        vsapi->logMessage(mtCritical, "Failed processing planes!\n");
+        vsapi->logMessage(mtCritical, "Failed processing planes!\n", core);
         return false;
     }
 
@@ -164,46 +165,36 @@ bool vspl_shader_filter(void *priv, void *dst, struct pl_plane_data *src,  Shade
     ));
 
     if (!ok) {
-        vsapi->logMessage(mtCritical, "Failed downloading data from the GPU!\n");
+        vsapi->logMessage(mtCritical, "Failed downloading data from the GPU!\n", core);
         return false;
     }
 
     return true;
 }
 
-static void VS_CC VSPlaceboShaderInit(VSMap *in, VSMap *out, void **instanceData, VSNode *node, VSCore *core, const VSAPI *vsapi) {
-    ShaderData *d = (ShaderData *) *instanceData;
-    VSVideoInfo new_vi = (VSVideoInfo) *(d->vi);
-    new_vi.width = d->width;
-    new_vi.height = d->height;
-    VSFormat f = *new_vi.format;
-    new_vi.format = vsapi->registerFormat(f.colorFamily, f.sampleType, f.bitsPerSample, 0, 0, core);
-    vsapi->setVideoInfo(&new_vi, 1, node);
-}
-
-static const VSFrameRef *VS_CC VSPlaceboShaderGetFrame(int n, int activationReason, void **instanceData, void **frameData, VSFrameContext *frameCtx, VSCore *core, const VSAPI *vsapi) {
-    ShaderData *d = (ShaderData *) *instanceData;
+static const VSFrame *VS_CC VSPlaceboShaderGetFrame(int n, int activationReason, void *instanceData, void **frameData, VSFrameContext *frameCtx, VSCore *core, const VSAPI *vsapi) {
+    ShaderData *d = (ShaderData *) instanceData;
 
     if (activationReason == arInitial) {
         vsapi->requestFrameFilter(n, d->node, frameCtx);
     } else if (activationReason == arAllFramesReady) {
-        const VSFrameRef *frame = vsapi->getFrameFilter(n, d->node, frameCtx);
+        const VSFrame *frame = vsapi->getFrameFilter(n, d->node, frameCtx);
 
         if (d->range == -1) {
-            const VSMap *props = vsapi->getFramePropsRO(frame);
+            const VSMap *props = vsapi->getFramePropertiesRO(frame);
 
             int err = 0;
-            int r = vsapi->propGetInt(props, "_ColorRange", 0, &err);
+            int r = vsapi->mapGetInt(props, "_ColorRange", 0, &err);
             if (err)
                 d->range = PL_COLOR_LEVELS_PC;
             else
                 d->range = r ? PL_COLOR_LEVELS_TV : PL_COLOR_LEVELS_PC;
         }
 
-        const VSFormat *dstfmt = d->vi->format;
-        dstfmt = vsapi->registerFormat(dstfmt->colorFamily, dstfmt->sampleType, dstfmt->bitsPerSample, 0, 0, core);
+        const VSVideoFormat dstfmt = d->vi_out.format;
+        vsapi->queryVideoFormat(&dstfmt, dstfmt.colorFamily, dstfmt.sampleType, dstfmt.bitsPerSample, 0, 0, core);
 
-        VSFrameRef *dst = vsapi->newVideoFrame(dstfmt, d->width, d->height, frame, core);
+        VSFrame *dst = vsapi->newVideoFrame(&dstfmt, d->width, d->height, frame, core);
 
         struct pl_plane_data planes[4] = {0};
         for (int j = 0; j < 3; ++j) {
@@ -213,7 +204,7 @@ static const VSFrameRef *VS_CC VSPlaceboShaderGetFrame(int n, int activationReas
                 .height = vsapi->getFrameHeight(frame, j),
                 .pixel_stride = 2,
                 .row_stride =  vsapi->getStride(frame, j),
-                .pixels = vsapi->getReadPtr((VSFrameRef *) frame, j),
+                .pixels = vsapi->getReadPtr((VSFrame *) frame, j),
             };
 
             planes[j].component_size[0] = 16;
@@ -225,8 +216,8 @@ static const VSFrameRef *VS_CC VSPlaceboShaderGetFrame(int n, int activationReas
 
         pthread_mutex_lock(&d->lock);
 
-        if (vspl_shader_reconfig(d->vf, planes, vsapi, d)) {
-            vspl_shader_filter(d->vf, packed_dst, planes, d, n, vsapi);
+        if (vspl_shader_reconfig(d->vf, planes, core, vsapi, d)) {
+            vspl_shader_filter(d->vf, packed_dst, planes, d, n, core, vsapi);
         }
 
         pthread_mutex_unlock(&d->lock);
@@ -273,15 +264,15 @@ void VS_CC VSPlaceboShaderCreate(const VSMap *in, VSMap *out, void *userData, VS
     enum pl_log_level log_level;
 
     if (pthread_mutex_init(&d.lock, NULL) != 0) {
-        vsapi->setError(out, "placebo.Shader: mutex init failed\n");
+        vsapi->mapSetError(out, "placebo.Shader: mutex init failed\n");
         return;
     }
 
-    log_level = vsapi->propGetInt(in, "log_level", 0, &err);
+    log_level = vsapi->mapGetInt(in, "log_level", 0, &err);
     if (err)
         log_level = PL_LOG_ERR;
 
-    const char *sh = vsapi->propGetData(in, "shader", 0, &err);
+    const char *sh = vsapi->mapGetData(in, "shader", 0, &err);
     char *shader;
     size_t fsize;
 
@@ -289,7 +280,7 @@ void VS_CC VSPlaceboShaderCreate(const VSMap *in, VSMap *out, void *userData, VS
         FILE *fl = fopen(sh, "rb");
         if (fl == NULL) {
             perror("Failed: ");
-            vsapi->setError(out, "placebo.Shader: Failed reading shader file!");
+            vsapi->mapSetError(out, "placebo.Shader: Failed reading shader file!");
             return;
         }
 
@@ -303,19 +294,22 @@ void VS_CC VSPlaceboShaderCreate(const VSMap *in, VSMap *out, void *userData, VS
 
         shader[fsize] = '\0';
     } else {
-        const char *shader_s = vsapi->propGetData(in, "shader_s", 0, &err);
+        const char *shader_s = vsapi->mapGetData(in, "shader_s", 0, &err);
 
         if (err) {
-            vsapi->setError(out, "placebo.Shader: Either shader or shader_s must be specified!");
+            vsapi->mapSetError(out, "placebo.Shader: Either shader or shader_s must be specified!");
             return;
         }
         fsize =  strlen(shader_s);
         shader = malloc(fsize + 1);
-        strcpy(shader, shader_s);
+        strcpy_s(shader, fsize + 1, shader_s);
     }
 
-    d.node = vsapi->propGetNode(in, "clip", 0, 0);
+    d.node = vsapi->mapGetNode(in, "clip", 0, 0);
     d.vi = vsapi->getVideoInfo(d.node);
+
+    d.vi_out = *d.vi;
+    vsapi->getVideoFormatByID(&d.vi_out.format, pfYUV444P16, core);
 
     d.vf = VSPlaceboInit(log_level);
     d.shader = pl_mpv_user_shader_parse(d.vf->gpu, shader, strlen(shader));
@@ -324,50 +318,53 @@ void VS_CC VSPlaceboShaderCreate(const VSMap *in, VSMap *out, void *userData, VS
     if (!d.shader) {
         VSPlaceboUninit(d.vf);
         pl_mpv_user_shader_destroy(&d.shader);
-        vsapi->setError(out, "placebo.Shader: Failed parsing shader!");
+        vsapi->mapSetError(out, "placebo.Shader: Failed parsing shader!");
         vsapi->freeNode(d.node);
         return;
     }
 
-    if (d.vi->format->colorFamily != cmYUV || d.vi->format->bitsPerSample != 16) {
-        vsapi->setError(out, "placebo.Shader: Input should be YUVxxxP16!");
+    if (d.vi->format.colorFamily != cfYUV || d.vi->format.bitsPerSample != 16) {
+        vsapi->mapSetError(out, "placebo.Shader: Input should be YUVxxxP16!");
         vsapi->freeNode(d.node);
         return;
     }
 
-    d.range = -1;
-    d.matrix = vsapi->propGetInt(in, "matrix", 0, &err);
+    d.range = 0;
+    d.matrix = vsapi->mapGetInt(in, "matrix", 0, &err);
     if (err)
         d.matrix = PL_COLOR_SYSTEM_BT_709;
 
-    d.width = vsapi->propGetInt(in, "width", 0, &err);
+    d.width = vsapi->mapGetInt(in, "width", 0, &err);
     if (err)
         d.width = d.vi->width;
 
-    d.height = vsapi->propGetInt(in, "height", 0, &err);
+    d.height = vsapi->mapGetInt(in, "height", 0, &err);
     if (err)
         d.height = d.vi->height;
 
-    d.chromaLocation = vsapi->propGetInt(in, "chroma_loc", 0, &err);
+    d.vi_out.width = d.width;
+    d.vi_out.height = d.height;
+
+    d.chromaLocation = vsapi->mapGetInt(in, "chroma_loc", 0, &err);
     if (err)
         d.chromaLocation = PL_CHROMA_LEFT;
 
-    d.linear = vsapi->propGetInt(in, "linearize", 0, &err);
+    d.linear = vsapi->mapGetInt(in, "linearize", 0, &err);
     if (err) d.linear = 1;
-    d.trc = vsapi->propGetInt(in, "trc", 0, &err);
+    d.trc = vsapi->mapGetInt(in, "trc", 0, &err);
     if (err) d.trc = 1;
 
     struct pl_sigmoid_params *sigmoidParams = malloc(sizeof(struct pl_sigmoid_params));
 
-    sigmoidParams->center = vsapi->propGetFloat(in, "sigmoid_center", 0, &err);
+    sigmoidParams->center = vsapi->mapGetFloat(in, "sigmoid_center", 0, &err);
     if (err)
         sigmoidParams->center = pl_sigmoid_default_params.center;
 
-    sigmoidParams->slope = vsapi->propGetFloat(in, "sigmoid_slope", 0, &err);
+    sigmoidParams->slope = vsapi->mapGetFloat(in, "sigmoid_slope", 0, &err);
     if (err)
         sigmoidParams->slope = pl_sigmoid_default_params.slope;
 
-    bool sigm = vsapi->propGetInt(in, "sigmoidize", 0, &err);
+    bool sigm = vsapi->mapGetInt(in, "sigmoidize", 0, &err);
     if (err)
         sigm = true;
     d.sigmoid_params = sigm ? sigmoidParams : NULL;
@@ -375,11 +372,11 @@ void VS_CC VSPlaceboShaderCreate(const VSMap *in, VSMap *out, void *userData, VS
 
     struct pl_sample_filter_params *sampleFilterParams = calloc(1, sizeof(struct pl_sample_filter_params));
 
-    sampleFilterParams->lut_entries = vsapi->propGetInt(in, "lut_entries", 0, &err);
-    sampleFilterParams->cutoff = vsapi->propGetFloat(in, "cutoff", 0, &err);
-    sampleFilterParams->antiring = vsapi->propGetFloat(in, "antiring", 0, &err);
+    sampleFilterParams->lut_entries = vsapi->mapGetInt(in, "lut_entries", 0, &err);
+    sampleFilterParams->cutoff = vsapi->mapGetFloat(in, "cutoff", 0, &err);
+    sampleFilterParams->antiring = vsapi->mapGetFloat(in, "antiring", 0, &err);
 
-    const char *filter = vsapi->propGetData(in, "filter", 0, &err);
+    const char *filter = vsapi->mapGetData(in, "filter", 0, &err);
 
     if (!filter) filter = "ewa_lanczos";
 #define FILTER_ELIF(name) else if (strcmp(filter, #name) == 0) sampleFilterParams->filter = pl_filter_##name;
@@ -405,29 +402,29 @@ void VS_CC VSPlaceboShaderCreate(const VSMap *in, VSMap *out, void *userData, VS
     FILTER_ELIF(ewa_lanczos)
     FILTER_ELIF(ewa_robidouxsharp)
     else {
-        vsapi->logMessage(mtWarning, "Unkown filter... selecting ewa_lanczos.\n");
+        vsapi->logMessage(mtWarning, "Unkown filter... selecting ewa_lanczos.\n", core);
         sampleFilterParams->filter = pl_filter_ewa_lanczos;
     }
 
-    sampleFilterParams->filter.clamp = vsapi->propGetFloat(in, "clamp", 0, &err);
-    sampleFilterParams->filter.blur = vsapi->propGetFloat(in, "blur", 0, &err);
-    sampleFilterParams->filter.taper = vsapi->propGetFloat(in, "taper", 0, &err);
+    sampleFilterParams->filter.clamp = vsapi->mapGetFloat(in, "clamp", 0, &err);
+    sampleFilterParams->filter.blur = vsapi->mapGetFloat(in, "blur", 0, &err);
+    sampleFilterParams->filter.taper = vsapi->mapGetFloat(in, "taper", 0, &err);
     struct pl_filter_function *f = calloc(1, sizeof(struct pl_filter_function));
     *f = *sampleFilterParams->filter.kernel;
 
     if (f->resizable) {
-        vsapi->propGetFloat(in, "radius", 0, &err);
+        vsapi->mapGetFloat(in, "radius", 0, &err);
         if (!err)
-            f->radius = vsapi->propGetFloat(in, "radius", 0, &err);
+            f->radius = vsapi->mapGetFloat(in, "radius", 0, &err);
     }
 
-    vsapi->propGetFloat(in, "param1", 0, &err);
+    vsapi->mapGetFloat(in, "param1", 0, &err);
     if (!err && f->tunable[0])
-        f->params[0] = vsapi->propGetFloat(in, "param1", 0, &err);
+        f->params[0] = vsapi->mapGetFloat(in, "param1", 0, &err);
 
-    vsapi->propGetFloat(in, "param2", 0, &err);
+    vsapi->mapGetFloat(in, "param2", 0, &err);
     if (!err && f->tunable[1])
-        f->params[1] = vsapi->propGetFloat(in, "param2", 0, &err);
+        f->params[1] = vsapi->mapGetFloat(in, "param2", 0, &err);
 
     sampleFilterParams->filter.kernel = f;
 
@@ -436,5 +433,18 @@ void VS_CC VSPlaceboShaderCreate(const VSMap *in, VSMap *out, void *userData, VS
     data = malloc(sizeof(d));
     *data = d;
 
-    vsapi->createFilter(in, out, "Shader", VSPlaceboShaderInit, VSPlaceboShaderGetFrame, VSPlaceboShaderFree, fmParallel, 0, data, core);
+    VSFilterDependency deps[] = {{d.node, rpStrictSpatial}};
+
+    vsapi->createVideoFilter(
+        out,
+        "Shader",
+        &d.vi_out,
+        VSPlaceboShaderGetFrame,
+        VSPlaceboShaderFree,
+        fmParallel,
+        deps,
+        1,
+        data,
+        core
+    );
 }

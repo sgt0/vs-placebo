@@ -3,13 +3,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "VapourSynth.h"
-#include "VSHelper.h"
+#include <VapourSynth4.h>
+#include <VSHelper4.h>
 
 #include "vs-placebo.h"
 
 typedef struct {
-    VSNodeRef *node;
+    VSNode *node;
     const VSVideoInfo *vi;
     void *vf;
     unsigned int planes;
@@ -20,7 +20,7 @@ typedef struct {
     pthread_mutex_t lock;
 } DebandData;
 
-bool vspl_deband_do_image(DebandData *dbd_data, struct pl_frame *src_img, struct pl_frame *dst_img, const VSAPI *vsapi)
+bool vspl_deband_do_image(DebandData *dbd_data, struct pl_frame *src_img, struct pl_frame *dst_img, VSCore *core, const VSAPI *vsapi)
 {
     struct priv *p = dbd_data->vf;
     bool ok = true;
@@ -52,13 +52,13 @@ bool vspl_deband_do_image(DebandData *dbd_data, struct pl_frame *src_img, struct
     // ok &= pl_render_image(p->rr, src_img, dst_img, dbd_data->render_params);
 
     if (!ok) {
-        vsapi->logMessage(mtCritical, "placebo.Deband: Failed processing planes!");
+        vsapi->logMessage(mtCritical, "placebo.Deband: Failed processing planes!", core);
     }
 
     return ok;
 }
 
-bool vspl_deband_reconfig(DebandData *dbd_data, VSFrameRef *dst, const VSAPI *vsapi, int plane_idx, const struct pl_plane_data *data)
+bool vspl_deband_reconfig(DebandData *dbd_data, VSFrame *dst, VSCore *core, const VSAPI *vsapi, int plane_idx, const struct pl_plane_data *data)
 {
     struct priv *p = dbd_data->vf;
 
@@ -66,7 +66,7 @@ bool vspl_deband_reconfig(DebandData *dbd_data, VSFrameRef *dst, const VSAPI *vs
     pl_fmt fmt = pl_plane_find_fmt(p->gpu, NULL, data);
 
     if (!fmt) {
-        vsapi->logMessage(mtCritical, "placebo.Deband: Failed configuring filter: no good texture format!");
+        vsapi->logMessage(mtCritical, "placebo.Deband: Failed configuring filter: no good texture format!", core);
         return false;
     }
 
@@ -88,13 +88,13 @@ bool vspl_deband_reconfig(DebandData *dbd_data, VSFrameRef *dst, const VSAPI *vs
     ));
 
     if (!ok) {
-        vsapi->logMessage(mtCritical, "placebo.Deband: Failed creating GPU textures!");
+        vsapi->logMessage(mtCritical, "placebo.Deband: Failed creating GPU textures!", core);
     }
 
     return ok;
 }
 
-bool vspl_deband_upload_plane(DebandData *dbd_data, const VSAPI *vsapi, int plane_idx, const struct pl_plane_data *data, struct pl_plane *plane)
+bool vspl_deband_upload_plane(DebandData *dbd_data, VSCore *core, const VSAPI *vsapi, int plane_idx, const struct pl_plane_data *data, struct pl_plane *plane)
 {
     struct priv *p = dbd_data->vf;
 
@@ -103,13 +103,13 @@ bool vspl_deband_upload_plane(DebandData *dbd_data, const VSAPI *vsapi, int plan
     bool ok = pl_upload_plane(p->gpu, plane, &p->tex_in[plane_idx], data);
 
     if (!ok) {
-        vsapi->logMessage(mtCritical, "placebo.Deband: Failed downloading data from the GPU!");
+        vsapi->logMessage(mtCritical, "placebo.Deband: Failed downloading data from the GPU!", core);
     }
 
     return ok;
 }
 
-bool vspl_deband_download_planes(DebandData *dbd_data, const VSAPI *vsapi, VSFrameRef *vs_dst, const struct pl_plane_data *data, struct pl_frame *dst_img)
+bool vspl_deband_download_planes(DebandData *dbd_data, VSCore *core, const VSAPI *vsapi, VSFrame *vs_dst, const struct pl_plane_data *data, struct pl_frame *dst_img)
 {
     struct priv *p = dbd_data->vf;
 
@@ -133,36 +133,30 @@ bool vspl_deband_download_planes(DebandData *dbd_data, const VSAPI *vsapi, VSFra
     }
 
     if (!ok) {
-        vsapi->logMessage(mtCritical, "placebo.Deband: Failed downloading data from the GPU!");
+        vsapi->logMessage(mtCritical, "placebo.Deband: Failed downloading data from the GPU!", core);
     }
 
     return ok;
 }
 
-static void VS_CC VSPlaceboDebandInit(VSMap *in, VSMap *out, void **instanceData, VSNode *node, VSCore *core, const VSAPI *vsapi) {
-    DebandData *d = (DebandData *) *instanceData;
-    VSVideoInfo new_vi = (VSVideoInfo) *(d->vi);
-    vsapi->setVideoInfo(&new_vi, 1, node);
-}
-
-static const VSFrameRef *VS_CC VSPlaceboDebandGetFrame(int n, int activationReason, void **instanceData, void **frameData, VSFrameContext *frameCtx, VSCore *core, const VSAPI *vsapi) {
-    DebandData *dbd_data = (DebandData *) *instanceData;
+static const VSFrame *VS_CC VSPlaceboDebandGetFrame(int n, int activationReason, void *instanceData, void **frameData, VSFrameContext *frameCtx, VSCore *core, const VSAPI *vsapi) {
+    DebandData *dbd_data = (DebandData *) instanceData;
 
     if (activationReason == arInitial) {
         vsapi->requestFrameFilter(n, dbd_data->node, frameCtx);
     } else if (activationReason == arAllFramesReady) {
-        const VSFrameRef *frame = vsapi->getFrameFilter(n, dbd_data->node, frameCtx);
+        const VSFrame *frame = vsapi->getFrameFilter(n, dbd_data->node, frameCtx);
 
         int ih = vsapi->getFrameHeight(frame, 0);
         int iw = vsapi->getFrameWidth(frame, 0);
 
-        const VSFormat *srcFmt = dbd_data->vi->format;
-        VSFrameRef *dst = vsapi->newVideoFrame(srcFmt, iw, ih, frame, core);
+        const VSVideoFormat srcFmt = dbd_data->vi->format;
+        VSFrame *dst = vsapi->newVideoFrame(&srcFmt, iw, ih, frame, core);
 
         struct pl_color_repr repr = {
             .bits = {
-                .sample_depth = dbd_data->vi->format->bitsPerSample,
-                .color_depth = dbd_data->vi->format->bitsPerSample,
+                .sample_depth = dbd_data->vi->format.bitsPerSample,
+                .color_depth = dbd_data->vi->format.bitsPerSample,
                 .bit_shift = 0
             },
             .sys = PL_COLOR_SYSTEM_UNKNOWN,
@@ -178,7 +172,7 @@ static const VSFrameRef *VS_CC VSPlaceboDebandGetFrame(int n, int activationReas
 
         struct priv *p = dbd_data->vf;
 
-        int numPlanes = srcFmt->numPlanes;
+        int numPlanes = srcFmt.numPlanes;
         int plane_idx = 0;
 
         struct pl_plane_data data[3] = {};
@@ -186,28 +180,28 @@ static const VSFrameRef *VS_CC VSPlaceboDebandGetFrame(int n, int activationReas
             bool copied = !((1u << i) & dbd_data->planes);
 
             if (copied) {
-                vs_bitblt(vsapi->getWritePtr(dst, i), vsapi->getStride(dst, i),
-                          vsapi->getWritePtr((VSFrameRef *) frame, i),
+                vsh_bitblt(vsapi->getWritePtr(dst, i), vsapi->getStride(dst, i),
+                          vsapi->getWritePtr((VSFrame *) frame, i),
                           vsapi->getStride(frame, i),
-                          vsapi->getFrameWidth(dst, i) * dbd_data->vi->format->bytesPerSample,
+                          vsapi->getFrameWidth(dst, i) * dbd_data->vi->format.bytesPerSample,
                           vsapi->getFrameHeight(dst, i));
             } else {
                 src_img.num_planes += 1;
 
                 data[plane_idx] = (struct pl_plane_data) {
-                    .type = srcFmt->sampleType == stInteger ? PL_FMT_UNORM : PL_FMT_FLOAT,
+                    .type = srcFmt.sampleType == stInteger ? PL_FMT_UNORM : PL_FMT_FLOAT,
                     .width = vsapi->getFrameWidth(frame, i),
                     .height = vsapi->getFrameHeight(frame, i),
-                    .pixel_stride = srcFmt->bytesPerSample,
+                    .pixel_stride = srcFmt.bytesPerSample,
                     .row_stride = vsapi->getStride(frame, i),
-                    .pixels = vsapi->getReadPtr((VSFrameRef *) frame, i),
-                    .component_size[0] = srcFmt->bitsPerSample,
+                    .pixels = vsapi->getReadPtr((VSFrame *) frame, i),
+                    .component_size[0] = srcFmt.bitsPerSample,
                     .component_pad[0] = 0,
                     .component_map[0] = i,
                 };
 
-                if (vspl_deband_reconfig(dbd_data, dst, vsapi, plane_idx, &data[plane_idx])) {
-                    vspl_deband_upload_plane(dbd_data, vsapi, plane_idx, &data[plane_idx], &src_img.planes[plane_idx]);
+                if (vspl_deband_reconfig(dbd_data, dst, core, vsapi, plane_idx, &data[plane_idx])) {
+                    vspl_deband_upload_plane(dbd_data, core, vsapi, plane_idx, &data[plane_idx], &src_img.planes[plane_idx]);
                 }
 
                 // Create a plane for target
@@ -223,8 +217,8 @@ static const VSFrameRef *VS_CC VSPlaceboDebandGetFrame(int n, int activationReas
 
         dst_img.num_planes = src_img.num_planes;
 
-        if (vspl_deband_do_image(dbd_data, &src_img, &dst_img, vsapi)) {
-            vspl_deband_download_planes(dbd_data, vsapi, dst, data, &dst_img);
+        if (vspl_deband_do_image(dbd_data, &src_img, &dst_img, core, vsapi)) {
+            vspl_deband_download_planes(dbd_data, core, vsapi, dst, data, &dst_img);
         }
 
         pthread_mutex_unlock(&dbd_data->lock);
@@ -255,36 +249,36 @@ void VS_CC VSPlaceboDebandCreate(const VSMap *in, VSMap *out, void *userData, VS
 
     if (pthread_mutex_init(&d.lock, NULL) != 0)
     {
-        vsapi->setError(out, "placebo.Deband: mutex init failed!");
+        vsapi->mapSetError(out, "placebo.Deband: mutex init failed!");
         return;
     }
 
-    log_level = vsapi->propGetInt(in, "log_level", 0, &err);
+    log_level = vsapi->mapGetInt(in, "log_level", 0, &err);
     if (err)
         log_level = PL_LOG_ERR;
 
-    d.node = vsapi->propGetNode(in, "clip", 0, 0);
+    d.node = vsapi->mapGetNode(in, "clip", 0, 0);
     d.vi = vsapi->getVideoInfo(d.node);
 
-    if ((d.vi->format->bitsPerSample != 8 && d.vi->format->bitsPerSample != 16 && d.vi->format->bitsPerSample != 32)) {
-        vsapi->setError(out, "placebo.Deband: Input bitdepth should be 8, 16 (Integer) or 32 (Float)!");
+    if ((d.vi->format.bitsPerSample != 8 && d.vi->format.bitsPerSample != 16 && d.vi->format.bitsPerSample != 32)) {
+        vsapi->mapSetError(out, "placebo.Deband: Input bitdepth should be 8, 16 (Integer) or 32 (Float)!");
         vsapi->freeNode(d.node);
     }
 
     d.vf = VSPlaceboInit(log_level);
 
-    d.dither = vsapi->propGetInt(in, "dither", 0, &err) && d.vi->format->bitsPerSample == 8;
+    d.dither = vsapi->mapGetInt(in, "dither", 0, &err) && d.vi->format.bitsPerSample == 8;
     if (err)
-        d.dither = d.vi->format->bitsPerSample == 8;
+        d.dither = d.vi->format.bitsPerSample == 8;
 
-    d.planes = (unsigned int) vsapi->propGetInt(in, "planes", 0, &err);
+    d.planes = (unsigned int) vsapi->mapGetInt(in, "planes", 0, &err);
     if (err)
         d.planes = 1u;
 
     struct pl_deband_params *debandParams = malloc(sizeof(struct pl_deband_params));
     *debandParams = pl_deband_default_params;
 
-#define DB_PARAM(par, type) debandParams->par = vsapi->propGet##type(in, #par, 0, &err); \
+#define DB_PARAM(par, type) debandParams->par = vsapi->mapGet##type(in, #par, 0, &err); \
         if (err) debandParams->par = pl_deband_default_params.par;
 
     DB_PARAM(iterations, Int)
@@ -295,7 +289,7 @@ void VS_CC VSPlaceboDebandCreate(const VSMap *in, VSMap *out, void *userData, VS
     struct pl_dither_params *plDitherParams = malloc(sizeof(struct pl_dither_params));
     *plDitherParams = pl_dither_default_params;
 
-    plDitherParams->method = vsapi->propGetInt(in, "dither_algo", 0, &err);
+    plDitherParams->method = vsapi->mapGetInt(in, "dither_algo", 0, &err);
     if (err)
         plDitherParams->method = pl_dither_default_params.method;
 
@@ -307,8 +301,22 @@ void VS_CC VSPlaceboDebandCreate(const VSMap *in, VSMap *out, void *userData, VS
 
     d.render_params = render_params;
     d.frame_index = 0;
+
     data = malloc(sizeof(d));
     *data = d;
 
-    vsapi->createFilter(in, out, "Deband", VSPlaceboDebandInit, VSPlaceboDebandGetFrame, VSPlaceboDebandFree, fmParallel, 0, data, core);
+    VSFilterDependency deps[] = {{d.node, rpStrictSpatial}};
+
+    vsapi->createVideoFilter(
+        out,
+        "Deband",
+        d.vi,
+        VSPlaceboDebandGetFrame,
+        VSPlaceboDebandFree,
+        fmParallel,
+        deps,
+        1,
+        data,
+        core
+    );
 }
