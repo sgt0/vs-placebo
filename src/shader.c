@@ -79,7 +79,6 @@ bool vspl_shader_do_plane(struct priv *p, void *data, int n, struct pl_plane *pl
         .upscaler = &d->sampleParams->filter,
         .downscaler = &d->sampleParams->filter,
         .antiringing_strength = d->sampleParams->antiring,
-        .lut_entries = d->sampleParams->lut_entries,
         .polar_cutoff = d->sampleParams->cutoff
     };
 
@@ -372,7 +371,6 @@ void VS_CC VSPlaceboShaderCreate(const VSMap *in, VSMap *out, void *userData, VS
 
     struct pl_sample_filter_params *sampleFilterParams = calloc(1, sizeof(struct pl_sample_filter_params));
 
-    sampleFilterParams->lut_entries = vsapi->mapGetInt(in, "lut_entries", 0, &err);
     sampleFilterParams->cutoff = vsapi->mapGetFloat(in, "cutoff", 0, &err);
     sampleFilterParams->antiring = vsapi->mapGetFloat(in, "antiring", 0, &err);
 

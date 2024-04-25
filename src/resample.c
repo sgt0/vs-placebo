@@ -381,7 +381,6 @@ void VS_CC VSPlaceboResampleCreate(const VSMap *in, VSMap *out, void *useResampl
     d.lut = NULL;
     sampleFilterParams->no_widening = false;
     sampleFilterParams->no_compute = false;
-    sampleFilterParams->lut_entries = vsapi->mapGetInt(in, "lut_entries", 0, &err);
     sampleFilterParams->cutoff = vsapi->mapGetFloat(in, "cutoff", 0, &err);
     sampleFilterParams->antiring = vsapi->mapGetFloat(in, "antiring", 0, &err);
 

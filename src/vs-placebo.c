@@ -91,7 +91,7 @@ VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI
 
     vspapi->registerFunction("Resample", "clip:vnode;width:int;height:int;filter:data:opt;clamp:float:opt;blur:float:opt;"
                              "taper:float:opt;radius:float:opt;param1:float:opt;param2:float:opt;"
-                             "sx:float:opt;sy:float:opt;antiring:float:opt;lut_entries:int:opt;cutoff:float:opt;"
+                             "sx:float:opt;sy:float:opt;antiring:float:opt;cutoff:float:opt;"
                              "sigmoidize:int:opt;sigmoid_center:float:opt;sigmoid_slope:float:opt;linearize:int:opt;trc:int:opt;"
                              "log_level:int:opt;", "clip:vnode;", VSPlaceboResampleCreate, 0, plugin);
 
@@ -114,7 +114,7 @@ VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI
 
     vspapi->registerFunction("Shader", "clip:vnode;shader:data:opt;width:int:opt;height:int:opt;chroma_loc:int:opt;matrix:int:opt;trc:int:opt;"
                            "linearize:int:opt;sigmoidize:int:opt;sigmoid_center:float:opt;sigmoid_slope:float:opt;"
-                           "lut_entries:int:opt;antiring:float:opt;"
+                           "antiring:float:opt;"
                            "filter:data:opt;clamp:float:opt;blur:float:opt;taper:float:opt;radius:float:opt;"
                            "param1:float:opt;param2:float:opt;shader_s:data:opt;"
                            "log_level:int:opt;", "clip:vnode;", VSPlaceboShaderCreate, 0, plugin);
