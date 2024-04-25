@@ -1,7 +1,7 @@
 project('vs-placebo', ['c', 'cpp'],
   default_options: ['buildtype=release', 'b_ndebug=if-release', 'c_std=c11', 'cpp_std=c++11'],
   meson_version: '>=0.51.0',
-  version: '1.4.5'
+  version: '2.0.0'
 )
 
 win32 = host_machine.system() == 'windows' or host_machine.system() == 'cygwin'
