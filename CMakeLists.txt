@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.29.2)
 project(vs_placebo C)
 project(p2p CXX)
 
-set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD 17)
 include_directories(".")
 
 add_library(p2p STATIC libp2p/p2p_api.cpp libp2p/v210.cpp)
