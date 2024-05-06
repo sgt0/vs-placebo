@@ -348,24 +348,13 @@ errors are logged.
 | 6     | Trace       |
 | 7     | All         |
 
-## Installing
+## Building
 
-If you’re on Arch, just do
-
+```bash
+$ git clone https://github.com/sgt0/vs-placebo.git
+$ cd vs-placebo
+$ git submodule sync --recursive
+$ git submodule update --init --force --recursive
+$ meson setup build --default-library=static --prefer-static
+$ meson compile -C build
 ```
-$ yay -S vapoursynth-plugin-placebo-git
-```
-
-Building on Linux using meson:
-
-```
-meson build
-ninja -C build
-```
-
-It is not recommended to install the library on the system without using a package manager.  
-Otherwise it's as simple as `DESTDIR= ninja -C build install`.
-
-Building on Linux for Windows:  
-Some experimental build system based on `mpv-winbuild-cmake`: https://github.com/quietvoid/mpv-winbuild-cmake/commits/vs-placebo-libdovi  
-Suggested to use on Arch Linux. YMMV.
