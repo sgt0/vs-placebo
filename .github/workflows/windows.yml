@@ -39,15 +39,9 @@ jobs:
             mingw-w64-ucrt-x86_64-libdovi
             mingw-w64-ucrt-x86_64-lcms2
             mingw-w64-ucrt-x86_64-shaderc
-      - name: Build libplacebo
-        working-directory: ./libplacebo
-        run: |
-          meson setup build --buildtype release --default-library=static -Ddemos=false -Dprefix=$PWD/install
-          meson compile -vC build
-          meson install -C build
       - name: Build vs-placebo
         run: |
-          meson setup build --buildtype release
+          meson setup build --buildtype release --prefer-static --default-library=static -Dcpp_link_args='-static' -Dlibplacebo:demos=false -Dlibplacebo:glslang=enabled
           meson compile -vC build
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v1.1.0

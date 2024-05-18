@@ -2,6 +2,6 @@
 	path = libp2p
 	url = https://bitbucket.org/the-sekrit-twc/libp2p.git
 [submodule "libplacebo"]
-	path = libplacebo
+	path = subprojects/libplacebo
 	url = https://github.com/haasn/libplacebo.git
 	ignore = untracked
