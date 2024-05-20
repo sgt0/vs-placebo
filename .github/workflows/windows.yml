@@ -50,7 +50,8 @@ jobs:
           meson setup build --buildtype release
           meson compile -vC build
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v1.1.0
+        uses: actions/attest-build-provenance@v1.1.2
+        if: ${{ github.event_name == 'push' }}
         with:
           subject-path: build/libvs_placebo.dll
       - name: Export version
