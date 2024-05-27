@@ -4,6 +4,7 @@ project('vs-placebo', ['c', 'cpp'],
   version: '3.0.0'
 )
 
+cc = meson.get_compiler('c')
 win32 = host_machine.system() == 'windows' or host_machine.system() == 'cygwin'
 
 if win32
@@ -12,6 +13,14 @@ if win32
   meson.override_dependency('shaderc', shaderc_combined)
   spirv_cross_c = dependency('spirv-cross-c')
   meson.override_dependency('spirv-cross-c-shared', spirv_cross_c)
+endif
+
+if cc.get_argument_syntax() == 'gcc'
+  add_project_arguments(
+    '-Werror-implicit-function-declaration',
+    '-D_FORTIFY_SOURCE=2',
+    language: 'c'
+  )
 endif
 
 placebo = dependency('libplacebo', required: true, version: '>=5.229.0', static: win32)

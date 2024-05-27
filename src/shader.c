@@ -300,7 +300,7 @@ void VS_CC VSPlaceboShaderCreate(const VSMap *in, VSMap *out, void *userData, VS
         }
         fsize =  strlen(shader_s);
         shader = malloc(fsize + 1);
-        strcpy_s(shader, fsize + 1, shader_s);
+        strcpy(shader, shader_s);
     }
 
     d.node = vsapi->mapGetNode(in, "clip", 0, 0);
