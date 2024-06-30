@@ -116,6 +116,10 @@ jobs:
         run: |
           meson setup build --buildtype release --prefer-static --default-library=static -Dcpp_link_args='-static' -Dlibplacebo:demos=false -Dlibplacebo:glslang=enabled
           meson compile -vC build
+      - name: Print meson logs
+        run: cat build/meson-logs/meson-log.txt
+      - name: Print compile commands
+        run: cat build/compile_commands.json
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v1.1.2
         if: ${{ github.event_name == 'push' }}
