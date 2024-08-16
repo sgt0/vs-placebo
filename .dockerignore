@@ -1,0 +1,9 @@
+.github
+build
+docker/Dockerfile.x86_64-w64-mingw32
+.dockerignore
+.gitignore
+.gitmodules
+CMakeLists.txt
+COPYING
+README.md
