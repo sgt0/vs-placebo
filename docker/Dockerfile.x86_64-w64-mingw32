@@ -1,0 +1,160 @@
+FROM debian:unstable-slim@sha256:83a5edf876f2ffc9b7b13a1b26fdb7bd62f259dcb3c2c862158c850ebd3ee3a0 AS builder
+
+ARG GLSLANG_BRANCH=vulkan-sdk-1.3.290.0
+ARG SHADERC_BRANCH=v2024.1
+ARG SPIRV_CROSS_BRANCH=vulkan-sdk-1.3.290.0
+ARG SPIRV_HEADERS_BRANCH=vulkan-sdk-1.3.290.0
+ARG SPIRV_TOOLS_BRANCH=vulkan-sdk-1.3.290.0
+ARG VAPOURSYNTH_BRANCH=R69
+ARG VULKAN_HEADERS_BRANCH=vulkan-sdk-1.3.290.0
+ARG VULKAN_LOADER_BRANCH=vulkan-sdk-1.3.290.0
+
+ENV CROSS_SYSROOT=/usr/x86_64-w64-mingw32
+ENV PATH=$PATH:/root/.local/bin
+
+RUN set -x && \
+  # apt deps
+  apt-get update && \
+  apt-get install --no-install-recommends --no-install-suggests -y \
+    autoconf=2.72-3 automake=1:1.16.5-1.3 cmake=3.30.2-2 git=1:2.45.2-1 \
+    libtool=2.4.7-7 llvm-dev=1:16.0-58.1 make=4.3-4.1 pipx=1.6.0-1 \
+    binutils-mingw-w64-x86-64 mingw-w64-tools gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 && \
+  apt-get clean -y && rm -rf /var/lib/apt/lists/* && \
+  # pipx deps
+  pipx ensurepath && \
+  pipx install --global meson==1.5.1 ninja==1.11.1.1 && \
+  # git user for applying patches
+  git config --global user.email "builder@localhost"
+
+COPY ./docker/crossfiles/ /opt/crossfiles/
+
+# vulkan-headers
+WORKDIR /usr/src
+RUN git clone --depth 1 -b ${VULKAN_HEADERS_BRANCH} https://github.com/KhronosGroup/Vulkan-Headers.git
+WORKDIR /usr/src/Vulkan-Headers
+RUN set +x && \
+  cmake -H. -Bbuild -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE=/opt/crossfiles/x86_64-w64-mingw32.cmake \
+    -DCMAKE_INSTALL_PREFIX=$CROSS_SYSROOT \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    .. && \
+  ninja -Cbuild install && \
+  cmake -H. -Bbuild -GNinja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    .. && \
+  ninja -Cbuild install
+WORKDIR /usr/src
+RUN rm -rf Vulkan-Headers
+
+# vulkan-loader
+RUN git clone --depth 1 -b ${VULKAN_LOADER_BRANCH} https://github.com/KhronosGroup/Vulkan-Loader.git
+WORKDIR /usr/src/Vulkan-Loader
+RUN cmake -H. -Bbuild64 -GNinja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE=/opt/crossfiles/x86_64-w64-mingw32.cmake \
+    -DCMAKE_INSTALL_PREFIX=$CROSS_SYSROOT \
+    -DENABLE_WERROR=OFF \
+    -DUSE_MASM=OFF \
+    -DBUILD_TESTS=OFF \
+    .. && \
+  ninja -Cbuild64 install
+WORKDIR /usr/src
+RUN rm -rf Vulkan-Loader
+
+# shaderc
+RUN git clone --depth 1 -b ${SPIRV_HEADERS_BRANCH} https://github.com/KhronosGroup/SPIRV-Headers.git && \
+  git clone --depth 1 -b ${SPIRV_TOOLS_BRANCH} https://github.com/KhronosGroup/SPIRV-Tools.git && \
+  git clone --depth 1 -b ${GLSLANG_BRANCH} https://github.com/KhronosGroup/glslang.git && \
+  git clone --depth 1 -b ${SHADERC_BRANCH} https://github.com/google/shaderc.git
+WORKDIR /usr/src/shaderc
+RUN set +x && \
+  ln -s /usr/src/glslang ./third_party/glslang && \
+  ln -s /usr/src/SPIRV-Headers ./third_party/spirv-headers && \
+  ln -s /usr/src/SPIRV-Tools ./third_party/spirv-tools && \
+  cmake -H. -Bbuild64 -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE=/opt/crossfiles/x86_64-w64-mingw32.cmake \
+    -DCMAKE_INSTALL_PREFIX=$CROSS_SYSROOT \
+    -DCMAKE_FIND_ROOT_PATH=$CROSS_SYSROOT \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DENABLE_GLSLANG_BINARIES=OFF \
+    -DENABLE_SPIRV_TOOLS_INSTALL=ON \
+    -DSHADERC_ENABLE_WERROR_COMPILE=OFF \
+    -DSHADERC_SKIP_EXAMPLES=ON \
+    -DSHADERC_SKIP_INSTALL=ON \
+    -DSHADERC_SKIP_SPVC=ON \
+    -DSHADERC_SKIP_TESTS=ON \
+    -DSPIRV_SKIP_EXECUTABLES=ON \
+    -DSPIRV_SKIP_TESTS=ON \
+    -DSPIRV_TOOLS_BUILD_STATIC=ON \
+    -DSPIRV_TOOLS_LIBRARY_TYPE=STATIC \
+    -DMINGW_COMPILER_PREFIX=x86_64-w64-mingw32 \
+    -DCMAKE_CXX_FLAGS='${CMAKE_CXX_FLAGS} -std=c++17' && \
+  ninja -Cbuild64 && \
+  cp -R ./libshaderc/include/shaderc/ $CROSS_SYSROOT/include/shaderc/ && \
+  cp build64/libshaderc/libshaderc_combined.a $CROSS_SYSROOT/lib/libshaderc_combined.a && \
+  mkdir -p $CROSS_SYSROOT/lib/pkgconfig && \
+  cp build64/shaderc_combined.pc $CROSS_SYSROOT/lib/pkgconfig/shaderc.pc
+WORKDIR /usr/src
+RUN rm -rf shaderc
+
+# spirv-cross
+RUN git clone --depth 1 -b ${SPIRV_CROSS_BRANCH} https://github.com/KhronosGroup/SPIRV-Cross.git
+WORKDIR /usr/src/SPIRV-Cross
+COPY docker/patches/spirv-cross-0001-static-linking-hacks.patch .
+RUN set +x && \
+  git am --3way spirv-cross-*.patch && \
+  cmake -H. -Bbuild -GNinja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE=/opt/crossfiles/x86_64-w64-mingw32.cmake \
+    -DCMAKE_INSTALL_PREFIX=$CROSS_SYSROOT \
+    -DCMAKE_FIND_ROOT_PATH=$CROSS_SYSROOT \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DSPIRV_CROSS_SHARED=ON \
+    -DSPIRV_CROSS_CLI=OFF \
+    -DSPIRV_CROSS_ENABLE_TESTS=OFF \
+    -DCMAKE_CXX_FLAGS='${CMAKE_CXX_FLAGS} -D__USE_MINGW_ANSI_STDIO' && \
+  ninja -Cbuild install && \
+  ln -s $CROSS_SYSROOT/lib/pkgconfig/spirv-cross-c-shared.pc $CROSS_SYSROOT/lib/pkgconfig/spirv-cross.pc
+WORKDIR /usr/src
+RUN rm -rf SPIRV-Cross
+
+# zimg
+RUN git clone --depth 1 --recurse-submodules --shallow-submodules https://bitbucket.org/the-sekrit-twc/zimg.git
+WORKDIR /usr/src/zimg
+RUN set +x && \
+  ./autogen.sh && \
+  ./configure --host=x86_64-w64-mingw32 --prefix=$CROSS_SYSROOT && \
+  make install -j$(nproc)
+WORKDIR /usr/src
+RUN rm -rf zimg
+
+# vapoursynth
+RUN git clone --depth 1 -b ${VAPOURSYNTH_BRANCH} https://github.com/vapoursynth/vapoursynth.git
+WORKDIR /usr/src/vapoursynth
+RUN set +x && \
+  ./autogen.sh && \
+  ./configure --host=x86_64-w64-mingw32 --prefix=$CROSS_SYSROOT \
+    --disable-python-module --disable-vsscript && \
+  make install -j$(nproc)
+WORKDIR /usr/src
+RUN rm -rf vapoursynth
+
+# vs-placebo
+WORKDIR /usr/src/vs-placebo
+COPY . .
+RUN set +x && \
+  meson setup build --buildtype release --default-library static --prefer-static \
+    --prefix=$CROSS_SYSROOT \
+    --libdir=$CROSS_SYSROOT/lib \
+    --cross-file /opt/crossfiles/x86_64-w64-mingw32.meson \
+    -Dwin32-overrides=false \
+    -Dlibplacebo:demos=false -Dlibplacebo:d3d11=disabled -Dlibplacebo:glslang=disabled -Dlibplacebo:opengl=disabled \
+    -Dlibplacebo:shaderc=enabled -Dlibplacebo:vk-proc-addr=enabled && \
+  meson compile -C build
+
+FROM scratch AS artifact
+
+COPY --from=builder /usr/src/vs-placebo/build/libvs_placebo.dll /libvs_placebo.dll

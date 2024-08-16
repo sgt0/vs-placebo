@@ -7,7 +7,7 @@ project('vs-placebo', ['c', 'cpp'],
 cc = meson.get_compiler('c')
 win32 = host_machine.system() == 'windows' or host_machine.system() == 'cygwin'
 
-if win32
+if win32 and get_option('win32-overrides')
   # Use static versions of these libraries
   shaderc_combined = dependency('shaderc_combined')
   meson.override_dependency('shaderc', shaderc_combined)
@@ -44,7 +44,7 @@ sources = []
 subdir('src')
 
 shared_module('vs_placebo', sources,
-  dependencies: [placebo, vapoursynth_dep, dovi],
+  dependencies: [dependency('threads'), placebo, vapoursynth_dep, dovi],
   link_with: [p2p],
   name_prefix: 'lib',
   install_dir : join_paths(vapoursynth_dep.get_variable(pkgconfig: 'libdir'), 'vapoursynth'),

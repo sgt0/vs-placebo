@@ -1,0 +1,19 @@
+[binaries]
+c = 'x86_64-w64-mingw32-gcc'
+cpp = 'x86_64-w64-mingw32-g++'
+ar = 'x86_64-w64-mingw32-ar'
+as = 'x86_64-w64-mingw32-gcc'
+strip = 'x86_64-w64-mingw32-strip'
+windres = 'x86_64-w64-mingw32-windres'
+pkg-config = 'x86_64-w64-mingw32-pkg-config'
+cmake = 'cmake'
+
+[built-in options]
+c_link_args = ['-static']
+cpp_link_args = ['-static']
+
+[host_machine]
+system = 'windows'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'

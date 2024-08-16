@@ -352,15 +352,15 @@ errors are logged.
 
 If you’re on Arch, just do
 
-```
+```bash
 $ yay -S vapoursynth-plugin-placebo-git
 ```
 
 Building on Linux using meson:
 
-```
-meson build
-ninja -C build
+```bash
+$ meson setup build
+$ ninja -C build
 ```
 
 It is not recommended to install the library on the system without using a package manager.  
@@ -369,3 +369,13 @@ Otherwise it's as simple as `DESTDIR= ninja -C build install`.
 Building on Linux for Windows:  
 Some experimental build system based on `mpv-winbuild-cmake`: https://github.com/quietvoid/mpv-winbuild-cmake/commits/vs-placebo-libdovi  
 Suggested to use on Arch Linux. YMMV.
+
+### Docker build
+
+Docker can be used to cross-compile for Windows.
+
+```bash
+$ docker build --target=artifact --output type=local,dest=./build/ -f ./docker/Dockerfile.x86_64-w64-mingw32 .
+```
+
+This will place the built plugin at `build/libvs_placebo.dll`.

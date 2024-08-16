@@ -1,0 +1,6 @@
+option(
+  'win32-overrides',
+  type: 'boolean',
+  value: true,
+  description: 'Enable static dependency overrides for win32'
+)
