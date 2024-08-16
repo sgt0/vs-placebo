@@ -235,6 +235,7 @@ placebo.Resample(
     sigmoid_center: float = 0.75,
     sigmoid_slope: float = 6.5,
     trc: int = 1,
+    min_luma: float = 1e-6,
     log_level: int = 2,
 )
 ```
@@ -280,6 +281,8 @@ Input needs to be 8 or 16 bit Integer or 32 bit Float.
   | 14 | Panasonic V-Log (VARICAM) |
   | 15 | Sony S-Log1 |
   | 16 | Sony S-Log2 |
+- `min_luma`: Minimum luminance. Defaults to 1e-6 which is infinite contrast.
+  Set to 0 for 1000:1 contrast.
 
 ### Shader
 
