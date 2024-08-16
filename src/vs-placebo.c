@@ -77,12 +77,12 @@ void VSPlaceboUninit(void *priv)
 
 VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI *vspapi) {
     vspapi->configPlugin(
-        "com.vs.placebo", 
-        "placebo", 
-        "libplacebo plugin for VapourSynth", 
-        VS_MAKE_VERSION(3, 0), 
-        VAPOURSYNTH_API_VERSION, 
-        0, 
+        "com.vs.placebo",
+        "placebo",
+        "libplacebo plugin for VapourSynth",
+        VS_MAKE_VERSION(3, 0),
+        VAPOURSYNTH_API_VERSION,
+        0,
         plugin
     );
     vspapi->registerFunction("Deband", "clip:vnode;planes:int:opt;iterations:int:opt;threshold:float:opt;"
@@ -93,6 +93,7 @@ VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI
                              "taper:float:opt;radius:float:opt;param1:float:opt;param2:float:opt;"
                              "sx:float:opt;sy:float:opt;antiring:float:opt;"
                              "sigmoidize:int:opt;sigmoid_center:float:opt;sigmoid_slope:float:opt;linearize:int:opt;trc:int:opt;"
+                             "min_luma:float:opt;"
                              "log_level:int:opt;", "clip:vnode;", VSPlaceboResampleCreate, 0, plugin);
 
     vspapi->registerFunction("Tonemap", "clip:vnode;"

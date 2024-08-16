@@ -24,6 +24,10 @@ typedef struct {
     struct pl_sigmoid_params *sigmoid_params;
     enum pl_color_transfer trc;
     bool linear;
+
+    /** Minimum luminance. */
+    float min_luma;
+
     pthread_mutex_t lock;
 } ResampleData;
 
@@ -38,7 +42,8 @@ bool vspl_resample_do_plane(struct priv *p, void *data, int w, int h, VSCore *co
     sampleFilterParams.lut = &d->lut;
 
     struct pl_color_space *color = pl_color_space(
-        .transfer = d->trc
+        .transfer = d->trc,
+        .hdr.min_luma = d->min_luma,
     );
 
     struct pl_sample_src *src = pl_sample_src(
@@ -352,6 +357,12 @@ void VS_CC VSPlaceboResampleCreate(const VSMap *in, VSMap *out, void *useResampl
     if (err) d.linear = d.vi->format.colorFamily == cfRGB;
     // allow linearizing Gray manually, though, if the user knows what he’s doing
     d.linear = d.linear && (d.vi->format.colorFamily == cfRGB || d.vi->format.colorFamily == cfGray);
+
+    d.min_luma = vsapi->mapGetFloat(in, "min_luma", 0, &err);
+    if (err) {
+        // Default to infinite contrast to match zimg.
+        d.min_luma = PL_COLOR_HDR_BLACK;
+    }
 
     d.trc = vsapi->mapGetInt(in, "trc", 0, &err);
     if (err) d.trc = 1;
