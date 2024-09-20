@@ -18,6 +18,7 @@ endif
 if cc.get_argument_syntax() == 'gcc'
   add_project_arguments(
     '-Werror-implicit-function-declaration',
+    '-Werror=incompatible-pointer-types',
     '-D_FORTIFY_SOURCE=2',
     language: 'c'
   )

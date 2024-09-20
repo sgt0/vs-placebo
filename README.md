@@ -227,6 +227,8 @@ placebo.Resample(
     blur: float = 0.0,
     param1: float = 0.0,
     param2: float = 0.0,
+    src_width: float = None,
+    src_height: float = None,
     sx: float = 0.0,
     sy: float = 0.0,
     antiring: float = 0.0,
@@ -253,6 +255,8 @@ Input needs to be 8 or 16 bit Integer or 32 bit Float.
 - `blur`: Additional blur coefficient. This effectively stretches the kernel,
   without changing the effective radius of the filter radius.
 - `param1`, `param2`: Parameters for the filter function.
+- `src_width`, `src_height`: Dimensions of the source region. Defaults to the
+  dimensions of `clip`.
 - `sx`, `sy`: Top left corner of the source region. Can be used for subpixel shifts.
 - `antiring`: Antiringing strength.
 - `sigmoidize, linearize`: Whether to linearize/sigmoidize before scaling.
