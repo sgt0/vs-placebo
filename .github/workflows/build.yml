@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@v4.2.0
         with:
           submodules: recursive
 
@@ -43,7 +43,7 @@ jobs:
           sudo apt install -y cmake glslang-dev shaderc vulkan-headers
 
       - name: Checkout SPIRV
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@v4.2.0
         with:
           repository: KhronosGroup/SPIRV-Cross
           ref: sdk-1.3.236.0
@@ -57,7 +57,7 @@ jobs:
           sudo /opt/pipx_bin/ninja -Cbuild install
 
       - name: Checkout VapourSynth
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@v4.2.0
         with:
           repository: vapoursynth/vapoursynth
           ref: R68
@@ -133,7 +133,7 @@ jobs:
   build-docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.1.7
+      - uses: actions/checkout@v4.2.0
         with:
           submodules: recursive
       - uses: docker/setup-qemu-action@v3.2.0
