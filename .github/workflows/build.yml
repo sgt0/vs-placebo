@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: "3.12.3"
       - name: Install uv
-        uses: astral-sh/setup-uv@v3.1.3
+        uses: astral-sh/setup-uv@v3.1.5
       - name: Install Python dependencies
         run: |
           uv tool install meson
