@@ -244,7 +244,7 @@ placebo.Resample(
 
 Input needs to be 8 or 16 bit Integer or 32 bit Float.
 
-- `filter`: See [the header](https://github.com/haasn/libplacebo/blob/6aa96c72fc0e04cf7da64c6022939b7e2d031cae/src/include/libplacebo/filters.h#L271) for possible values (remove the “pl_filter” before the filter name, e.g. `filter="lanczos"`).
+- `filter`: See [the header](https://github.com/haasn/libplacebo/blob/v7.349.0/src/include/libplacebo/filters.h#L268-L299) for possible values (remove the "pl_filter_" before the filter name, e.g. `filter="lanczos"`).
 - `radius`: Override the filter kernel radius. Has no effect if the filter
   kernel is not resizeable.
 - `clamp`: Represents an extra weighting/clamping coefficient for negative
