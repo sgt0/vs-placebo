@@ -1,6 +1,8 @@
 #ifndef VS_PLACEBO_LIBRARY_H
 #define VS_PLACEBO_LIBRARY_H
 
+#include <stdatomic.h>
+
 #include <libplacebo/dispatch.h>
 #include <libplacebo/shaders/sampling.h>
 #include <libplacebo/utils/upload.h>
@@ -26,6 +28,11 @@ struct image {
     int width, height;
     int num_planes;
     struct plane planes[MAX_PLANES];
+};
+
+struct vspl_global {
+    pl_vulkan vk;
+    atomic_int ref_count;
 };
 
 struct priv {
