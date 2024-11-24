@@ -525,11 +525,11 @@ void VS_CC VSPlaceboResampleCreate(const VSMap *in, VSMap *out, void *useResampl
 
     vsapi->mapGetFloat(in, "param1", 0, &err);
     if (!err && f->tunable[0])
-        f->params[0] = vsapi->mapGetFloat(in, "param1", 0, &err);
+        sampleFilterParams->filter.params[0] = vsapi->mapGetFloat(in, "param1", 0, &err);
 
     vsapi->mapGetFloat(in, "param2", 0, &err);
     if (!err && f->tunable[1])
-        f->params[1] = vsapi->mapGetFloat(in, "param2", 0, &err);
+        sampleFilterParams->filter.params[1] = vsapi->mapGetFloat(in, "param2", 0, &err);
 
     sampleFilterParams->filter.kernel = f;
     d.sampleParams = sampleFilterParams;
