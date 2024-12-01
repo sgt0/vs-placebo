@@ -10,8 +10,6 @@
 #include "resample.h"
 #include "shader.h"
 
-static struct vspl_global global = {0};
-
 void *VSPlaceboInit(enum pl_log_level log_level) {
     struct priv *p = calloc(1, sizeof(struct priv));
     if (!p)
@@ -27,21 +25,16 @@ void *VSPlaceboInit(enum pl_log_level log_level) {
         goto error;
     }
 
-    if (!global.vk) {
-        struct pl_vulkan_params vp = pl_vulkan_default_params;
-        struct pl_vk_inst_params ip = pl_vk_inst_default_params;
-        // ip.debug = true;
-        vp.instance_params = &ip;
-        global.vk = pl_vulkan_create(p->log, &vp);
-        if (!global.vk) {
-            fprintf(stderr, "Failed creating vulkan context\n");
-            goto error;
-        }
-        atomic_store(&global.ref_count, 0);
-    }
+    struct pl_vulkan_params vp = pl_vulkan_default_params;
+    struct pl_vk_inst_params ip = pl_vk_inst_default_params;
+//    ip.debug = true;
+    vp.instance_params = &ip;
+    p->vk = pl_vulkan_create(p->log, &vp);
 
-    p->vk = global.vk;
-    atomic_fetch_add(&global.ref_count, 1);
+    if (!p->vk) {
+        fprintf(stderr, "Failed creating vulkan context\n");
+        goto error;
+    }
 
     // Give this a shorter name for convenience
     p->gpu = p->vk->gpu;
@@ -76,13 +69,10 @@ void VSPlaceboUninit(void *priv)
     pl_renderer_destroy(&p->rr);
     pl_shader_obj_destroy(&p->dither_state);
     pl_dispatch_destroy(&p->dp);
+    pl_vulkan_destroy(&p->vk);
     pl_log_destroy(&p->log);
 
     free(p);
-
-    if (atomic_fetch_sub(&global.ref_count, 1) == 1) {
-        pl_vulkan_destroy(&global.vk);
-    }
 }
 
 VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI *vspapi) {
