@@ -1,4 +1,4 @@
-FROM debian:unstable-slim@sha256:db5ec427e816921e39589dd9c51adc1847a70d9945f116aa20f0db2dae765cf8 AS builder
+FROM debian:unstable-slim@sha256:75612694db46ac072e25f2d0b55576e081c5a5efd6f70ac06098d12dd105a431 AS builder
 
 ARG GLSLANG_BRANCH=vulkan-sdk-1.3.290.0
 ARG SHADERC_BRANCH=v2024.1
