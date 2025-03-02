@@ -15,14 +15,14 @@ if win32 and get_option('win32-overrides')
   meson.override_dependency('spirv-cross-c-shared', spirv_cross_c)
 endif
 
-if cc.get_argument_syntax() == 'gcc'
-  add_project_arguments(
+add_project_arguments(
+   cc.get_supported_arguments(
     '-Werror-implicit-function-declaration',
-    '-Werror=incompatible-pointer-types',
-    '-D_FORTIFY_SOURCE=2',
-    language: 'c'
-  )
-endif
+    '-Werror=discarded-qualifiers',
+    '-Werror=incompatible-pointer-types'
+  ),
+  language: 'c'
+)
 
 placebo = dependency('libplacebo', required: true, version: '>=5.229.0', static: win32)
 vapoursynth_dep = dependency('vapoursynth', static: win32).partial_dependency(includes: true, compile_args: true)
