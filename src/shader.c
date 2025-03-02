@@ -189,7 +189,7 @@ static const VSFrame *VS_CC VSPlaceboShaderGetFrame(int n, int activationReason,
                 d->range = r ? PL_COLOR_LEVELS_TV : PL_COLOR_LEVELS_PC;
         }
 
-        const VSVideoFormat dstfmt = d->vi_out.format;
+        VSVideoFormat dstfmt = d->vi_out.format;
         vsapi->queryVideoFormat(&dstfmt, dstfmt.colorFamily, dstfmt.sampleType, dstfmt.bitsPerSample, 0, 0, core);
 
         VSFrame *dst = vsapi->newVideoFrame(&dstfmt, d->width, d->height, frame, core);
