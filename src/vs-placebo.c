@@ -27,6 +27,7 @@ void *VSPlaceboInit(enum pl_log_level log_level) {
 
     struct pl_vulkan_params vp = pl_vulkan_default_params;
     struct pl_vk_inst_params ip = pl_vk_inst_default_params;
+    vp.allow_software = true;
 //    ip.debug = true;
     vp.instance_params = &ip;
     p->vk = pl_vulkan_create(p->log, &vp);
