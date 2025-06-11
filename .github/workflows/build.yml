@@ -113,7 +113,7 @@ jobs:
           meson setup build --buildtype release --prefer-static --default-library=static -Dcpp_link_args='-static' -Dlibplacebo:demos=false -Dlibplacebo:glslang=enabled
           meson compile -vC build
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2.3.0
+        uses: actions/attest-build-provenance@v2.4.0
         if: ${{ github.event_name == 'push' }}
         with:
           subject-path: build/libvs_placebo.dll
