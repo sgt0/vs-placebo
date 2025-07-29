@@ -81,7 +81,7 @@ VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI
         "com.vs.placebo",
         "placebo",
         "libplacebo plugin for VapourSynth",
-        VS_MAKE_VERSION(3, 2),
+        VS_MAKE_VERSION(3, 3),
         VAPOURSYNTH_API_VERSION,
         0,
         plugin
