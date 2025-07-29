@@ -469,25 +469,28 @@ void VS_CC VSPlaceboResampleCreate(const VSMap *in, VSMap *out, void *useResampl
     d.trc = vsapi->mapGetInt(in, "trc", 0, &err);
     if (err) d.trc = 1;
 
-    struct pl_sigmoid_params *sigmoidParams = malloc(sizeof(struct pl_sigmoid_params));
-    *sigmoidParams = pl_sigmoid_default_params;
-
-    sigmoidParams->center = vsapi->mapGetFloat(in, "sigmoid_center", 0, &err);
-    if (err)
-        sigmoidParams->center = pl_sigmoid_default_params.center;
-
-    sigmoidParams->slope = vsapi->mapGetFloat(in, "sigmoid_slope", 0, &err);
-    if (err)
-        sigmoidParams->slope = pl_sigmoid_default_params.slope;
-
     // same reasoning as with linear
     bool sigm = vsapi->mapGetInt(in, "sigmoidize", 0, &err);
     if (err)
         sigm = d.vi->format.colorFamily == cfRGB;
 
     sigm = sigm && (d.vi->format.colorFamily == cfRGB || d.vi->format.colorFamily == cfGray);
-    d.sigmoid_params = sigm ? sigmoidParams : NULL;
+    d.sigmoid_params = NULL;
 
+    if (sigm) {
+        struct pl_sigmoid_params *sigmoidParams = malloc(sizeof(struct pl_sigmoid_params));
+        *sigmoidParams = pl_sigmoid_default_params;
+
+        sigmoidParams->center = vsapi->mapGetFloat(in, "sigmoid_center", 0, &err);
+        if (err)
+            sigmoidParams->center = pl_sigmoid_default_params.center;
+
+        sigmoidParams->slope = vsapi->mapGetFloat(in, "sigmoid_slope", 0, &err);
+        if (err)
+            sigmoidParams->slope = pl_sigmoid_default_params.slope;
+
+        d.sigmoid_params = sigmoidParams;
+    }
 
     struct pl_sample_filter_params *sampleFilterParams = calloc(1, sizeof(struct pl_sample_filter_params));;
 
