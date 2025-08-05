@@ -178,13 +178,13 @@ static const VSFrame *VS_CC VSPlaceboShaderGetFrame(int n, int activationReason,
     } else if (activationReason == arAllFramesReady) {
         const VSFrame *frame = vsapi->getFrameFilter(n, d->node, frameCtx);
 
-        if (d->range == -1) {
+        if (d->range == PL_COLOR_LEVELS_UNKNOWN) {
             const VSMap *props = vsapi->getFramePropertiesRO(frame);
 
             int err = 0;
             int r = vsapi->mapGetInt(props, "_ColorRange", 0, &err);
             if (err)
-                d->range = PL_COLOR_LEVELS_PC;
+                d->range = PL_COLOR_LEVELS_UNKNOWN;
             else
                 d->range = r ? PL_COLOR_LEVELS_TV : PL_COLOR_LEVELS_PC;
         }
@@ -327,7 +327,7 @@ void VS_CC VSPlaceboShaderCreate(const VSMap *in, VSMap *out, void *userData, VS
         return;
     }
 
-    d.range = 0;
+    d.range = PL_COLOR_LEVELS_UNKNOWN;
     d.matrix = vsapi->mapGetInt(in, "matrix", 0, &err);
     if (err)
         d.matrix = PL_COLOR_SYSTEM_BT_709;
