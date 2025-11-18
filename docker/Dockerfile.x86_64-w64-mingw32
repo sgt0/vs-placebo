@@ -1,13 +1,13 @@
 FROM debian:unstable-slim@sha256:ff1167e7596625ad417c288b195e4983f2ad1d2a3f078d1acdb2ee5df3e1fc15 AS builder
 
-ARG GLSLANG_BRANCH=vulkan-sdk-1.3.290.0
-ARG SHADERC_BRANCH=v2024.1
-ARG SPIRV_CROSS_BRANCH=vulkan-sdk-1.3.290.0
-ARG SPIRV_HEADERS_BRANCH=vulkan-sdk-1.3.290.0
-ARG SPIRV_TOOLS_BRANCH=vulkan-sdk-1.3.290.0
-ARG VAPOURSYNTH_BRANCH=R69
-ARG VULKAN_HEADERS_BRANCH=vulkan-sdk-1.3.290.0
-ARG VULKAN_LOADER_BRANCH=vulkan-sdk-1.3.290.0
+ARG GLSLANG_BRANCH=vulkan-sdk-1.4.328.1
+ARG SHADERC_BRANCH=v2025.4
+ARG SPIRV_CROSS_BRANCH=vulkan-sdk-1.4.328.1
+ARG SPIRV_HEADERS_BRANCH=vulkan-sdk-1.4.328.1
+ARG SPIRV_TOOLS_BRANCH=vulkan-sdk-1.4.328.1
+ARG VAPOURSYNTH_BRANCH=R72
+ARG VULKAN_HEADERS_BRANCH=vulkan-sdk-1.4.328.1
+ARG VULKAN_LOADER_BRANCH=vulkan-sdk-1.4.328.1
 
 ENV CROSS_SYSROOT=/usr/x86_64-w64-mingw32
 ENV PATH=$PATH:/root/.local/bin
@@ -121,7 +121,7 @@ WORKDIR /usr/src
 RUN rm -rf SPIRV-Cross
 
 # zimg
-RUN git clone --depth 1 --recurse-submodules --shallow-submodules https://bitbucket.org/the-sekrit-twc/zimg.git
+RUN git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/sekrit-twc/zimg.git
 WORKDIR /usr/src/zimg
 RUN set +x && \
   ./autogen.sh && \
