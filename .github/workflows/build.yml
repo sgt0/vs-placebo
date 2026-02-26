@@ -121,7 +121,7 @@ jobs:
         run: |
           echo "ARTIFACT_VERSION=$(meson introspect --projectinfo build | jq -r '.version')" >> $GITHUB_ENV
       - name: Upload
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: vsplacebo-windows-${{ env.ARTIFACT_VERSION }}
           path: build/libvs_placebo.dll
