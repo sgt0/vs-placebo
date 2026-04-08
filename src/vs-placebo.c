@@ -12,58 +12,92 @@
 
 pthread_mutex_t vspl_vulkan_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+static pl_log vspl_log = NULL;
+static pl_vulkan vspl_vk = NULL;
+static pl_gpu vspl_gpu = NULL;
+static int vspl_refcount = 0;
+
 void *VSPlaceboInit(enum pl_log_level log_level) {
     struct priv *p = calloc(1, sizeof(struct priv));
     if (!p)
         return NULL;
 
-    p->log = pl_log_create(PL_API_VER, pl_log_params(
-        .log_cb = pl_log_color,
-        .log_level = log_level
-    ));
+    pthread_mutex_lock(&vspl_vulkan_mutex);
 
-    if (!p->log) {
-        fprintf(stderr, "Failed initializing libplacebo\n");
-        goto error;
+    if (vspl_refcount == 0) {
+        vspl_log = pl_log_create(PL_API_VER, pl_log_params(
+            .log_cb = pl_log_color,
+            .log_level = log_level
+        ));
+
+        if (!vspl_log) {
+            fprintf(stderr, "Failed initializing libplacebo\n");
+            pthread_mutex_unlock(&vspl_vulkan_mutex);
+            goto error;
+        }
+
+        struct pl_vulkan_params vp = pl_vulkan_default_params;
+        struct pl_vk_inst_params ip = pl_vk_inst_default_params;
+        vp.allow_software = true;
+        vp.instance_params = &ip;
+        vspl_vk = pl_vulkan_create(vspl_log, &vp);
+
+        if (!vspl_vk) {
+            fprintf(stderr, "Failed creating vulkan context\n");
+            pl_log_destroy(&vspl_log);
+            pthread_mutex_unlock(&vspl_vulkan_mutex);
+            goto error;
+        }
+
+        vspl_gpu = vspl_vk->gpu;
     }
 
-    struct pl_vulkan_params vp = pl_vulkan_default_params;
-    struct pl_vk_inst_params ip = pl_vk_inst_default_params;
-    vp.allow_software = true;
-//    ip.debug = true;
-    vp.instance_params = &ip;
-    p->vk = pl_vulkan_create(p->log, &vp);
-
-    if (!p->vk) {
-        fprintf(stderr, "Failed creating vulkan context\n");
-        goto error;
-    }
-
-    // Give this a shorter name for convenience
-    p->gpu = p->vk->gpu;
+    vspl_refcount++;
+    p->log = vspl_log;
+    p->vk = vspl_vk;
+    p->gpu = vspl_gpu;
 
     p->dp = pl_dispatch_create(p->log, p->gpu);
     if (!p->dp) {
         fprintf(stderr, "Failed creating shader dispatch object\n");
+        vspl_refcount--;
+        if (vspl_refcount == 0) {
+            pl_vulkan_destroy(&vspl_vk);
+            pl_log_destroy(&vspl_log);
+            vspl_gpu = NULL;
+        }
+        pthread_mutex_unlock(&vspl_vulkan_mutex);
         goto error;
     }
 
     p->rr = pl_renderer_create(p->log, p->gpu);
     if (!p->rr) {
         fprintf(stderr, "Failed creating renderer\n");
+        pl_dispatch_destroy(&p->dp);
+        vspl_refcount--;
+        if (vspl_refcount == 0) {
+            pl_vulkan_destroy(&vspl_vk);
+            pl_log_destroy(&vspl_log);
+            vspl_gpu = NULL;
+        }
+        pthread_mutex_unlock(&vspl_vulkan_mutex);
         goto error;
     }
 
+    pthread_mutex_unlock(&vspl_vulkan_mutex);
     return p;
 
 error:
-    VSPlaceboUninit(p);
+    free(p);
     return NULL;
 }
 
 void VSPlaceboUninit(void *priv)
 {
     struct priv *p = priv;
+
+    pthread_mutex_lock(&vspl_vulkan_mutex);
+
     for (int i = 0; i < MAX_PLANES; i++) {
         if (p->tex_in[i])
             pl_tex_destroy(p->gpu, &p->tex_in[i]);
@@ -76,8 +110,15 @@ void VSPlaceboUninit(void *priv)
     pl_renderer_destroy(&p->rr);
     pl_shader_obj_destroy(&p->dither_state);
     pl_dispatch_destroy(&p->dp);
-    pl_vulkan_destroy(&p->vk);
-    pl_log_destroy(&p->log);
+
+    vspl_refcount--;
+    if (vspl_refcount == 0) {
+        pl_vulkan_destroy(&vspl_vk);
+        pl_log_destroy(&vspl_log);
+        vspl_gpu = NULL;
+    }
+
+    pthread_mutex_unlock(&vspl_vulkan_mutex);
 
     free(p);
 }
