@@ -5,8 +5,8 @@
 #ifdef HAVE_DOVI
 #include <libdovi/rpu_parser.h>
 
-static struct pl_dovi_metadata *create_dovi_meta(DoviRpuOpaque *rpu,
-                                                const DoviRpuDataHeader *hdr)
+static struct pl_dovi_metadata *create_dovi_meta(DoviRpuOpaque *rpu, const DoviRpuDataHeader *hdr,
+                                                 const bool el_present)
 {
     static struct pl_dovi_metadata dovi_meta; // persist state
     if (hdr->use_prev_vdr_rpu_flag)
@@ -16,10 +16,9 @@ static struct pl_dovi_metadata *create_dovi_meta(DoviRpuOpaque *rpu,
     if (!mapping)
         goto skip_mapping;
 
-    const uint8_t bits = hdr->bl_bit_depth_minus8 + 8;
-    const float scale = 1.0f / (1 << hdr->coefficient_log2_denom);
+    const uint8_t bl_bit_depth = hdr->bl_bit_depth_minus8 + 8;
+    const float coef_scale_d = 1.0f / (1ULL << hdr->coefficient_log2_denom);
 
-#if RPU_PARSER_MAJOR >= 3
     for (int c = 0; c < 3; c++) {
         const DoviReshapingCurve curve = mapping->curves[c];
 
@@ -30,7 +29,7 @@ static struct pl_dovi_metadata *create_dovi_meta(DoviRpuOpaque *rpu,
         uint16_t pivot = 0;
         for (int pivot_idx = 0; pivot_idx < cmp->num_pivots; pivot_idx++) {
             pivot += curve.pivots.data[pivot_idx];
-            cmp->pivots[pivot_idx] = (float) pivot / ((1 << bits) - 1);
+            cmp->pivots[pivot_idx] = (float) pivot / ((1 << bl_bit_depth) - 1);
         }
 
         for (int i = 0; i < cmp->num_pivots - 1; i++) {
@@ -42,62 +41,54 @@ static struct pl_dovi_metadata *create_dovi_meta(DoviRpuOpaque *rpu,
                 for (int k = 0; k <= poly_curve->poly_order_minus1.data[i] + 1; k++) {
                     int64_t ipart = poly_curve->poly_coef_int.list[i]->data[k];
                     uint64_t fpart = poly_curve->poly_coef.list[i]->data[k];
-                    cmp->poly_coeffs[i][k] = ipart + scale * fpart;
+                    cmp->poly_coeffs[i][k] = ipart + coef_scale_d * fpart;
                 }
             } else if (curve.mmr) {
                 const DoviMMRCurve *mmr_curve = curve.mmr;
 
                 int64_t ipart = mmr_curve->mmr_constant_int.data[i];
                 uint64_t fpart = mmr_curve->mmr_constant.data[i];
-                cmp->mmr_constant[i] = ipart + scale * fpart;
+                cmp->mmr_constant[i] = ipart + coef_scale_d * fpart;
                 cmp->mmr_order[i] = mmr_curve->mmr_order_minus1.data[i] + 1;
 
                 for (int j = 0; j < cmp->mmr_order[i]; j++) {
                     for (int k = 0; k < 7; k++) {
                         ipart = mmr_curve->mmr_coef_int.list[i]->list[j]->data[k];
                         fpart = mmr_curve->mmr_coef.list[i]->list[j]->data[k];
-                        cmp->mmr_coeffs[i][j][k] = ipart + scale * fpart;
+                        cmp->mmr_coeffs[i][j][k] = ipart + coef_scale_d * fpart;
                     }
                 }
             }
         }
     }
-#else
-    for (int c = 0; c < 3; c++) {
-        struct pl_reshape_data *cmp = &dovi_meta.comp[c];
-        uint16_t pivot = 0;
-        cmp->num_pivots = hdr->num_pivots_minus_2[c] + 2;
-        for (int pivot_idx = 0; pivot_idx < cmp->num_pivots; pivot_idx++) {
-            pivot += hdr->pred_pivot_value[c].data[pivot_idx];
-            cmp->pivots[pivot_idx] = (float) pivot / ((1 << bits) - 1);
-        }
 
-        for (int i = 0; i < cmp->num_pivots - 1; i++) {
-            memset(cmp->poly_coeffs[i], 0, sizeof(cmp->poly_coeffs[i]));
-            cmp->method[i] = mapping->mapping_idc[c].data[i];
+#if PL_API_VER >= 369
+    // See `pl_map_dovi_metadata` for documentation
+    // Re-implemented using libdovi
+    dovi_meta.nlq_active = el_present && !hdr->disable_residual_flag &&
+                           strcmp(hdr->el_type, "FEL") == 0 &&
+                           mapping->nlq_method_idc == 0; // LINEAR_DZ NLQ
 
-            switch (cmp->method[i]) {
-            case 0: // polynomial
-                for (int k = 0; k <= mapping->poly_order_minus1[c].data[i] + 1; k++) {
-                    int64_t ipart = mapping->poly_coef_int[c].list[i]->data[k];
-                    uint64_t fpart = mapping->poly_coef[c].list[i]->data[k];
-                    cmp->poly_coeffs[i][k] = ipart + scale * fpart;
-                }
-                break;
-            case 1: // MMR
-                int64_t ipart = mapping->mmr_constant_int[c].data[i];
-                uint64_t fpart = mapping->mmr_constant[c].data[i];
-                cmp->mmr_constant[i] = ipart + scale * fpart;
-                cmp->mmr_order[i] = mapping->mmr_order_minus1[c].data[i] + 1;
-                for (int j = 1; j <= cmp->mmr_order[i]; j++) {
-                    for (int k = 0; k < 7; k++) {
-                        ipart = mapping->mmr_coef_int[c].list[i]->list[j]->data[k];
-                        fpart = mapping->mmr_coef[c].list[i]->list[j]->data[k];
-                        cmp->mmr_coeffs[i][j - 1][k] = ipart + scale * fpart;
-                    }
-                }
-                break;
-            }
+    if (dovi_meta.nlq_active && mapping->nlq) {
+        const uint8_t el_bit_depth = hdr->el_bit_depth_minus8 + 8;
+        const float el_scale = 1.0f / ((1 << el_bit_depth) - 1);
+
+        const double slope_scale_d = ((1ULL << el_bit_depth) - 1) * coef_scale_d;
+
+        const DoviRpuDataNlq *src = mapping->nlq;
+        for (int c = 0; c < 3; c++) {
+            struct pl_dovi_nlq_data *dst = &dovi_meta.nlq[c];
+
+            uint64_t slope_ipart = src->linear_deadzone_slope_int[c];
+            uint64_t slope_fpart = src->linear_deadzone_slope[c];
+            uint64_t thr_ipart = src->linear_deadzone_threshold_int[c];
+            uint64_t thr_fpart = src->linear_deadzone_threshold[c];
+
+            const double S = (slope_ipart << hdr->coefficient_log2_denom) | slope_fpart;
+            const double T = (thr_ipart << hdr->coefficient_log2_denom) | thr_fpart;
+            dst->offset = el_scale * src->nlq_offset[c];
+            dst->deadzone_slope = slope_scale_d * S;
+            dst->deadzone_threshold = coef_scale_d * (T - 0.5 * S);
         }
     }
 #endif
@@ -127,7 +118,7 @@ skip_mapping:
         dovi_rpu_free_vdr_dm_data(dm_data);
     }
 
-done: ;
+done:
     struct pl_dovi_metadata *ret = malloc(sizeof(dovi_meta));
     memcpy(ret, &dovi_meta, sizeof(dovi_meta));
     return ret;

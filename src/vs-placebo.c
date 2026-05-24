@@ -65,8 +65,12 @@ void VSPlaceboUninit(void *priv)
 {
     struct priv *p = priv;
     for (int i = 0; i < MAX_PLANES; i++) {
-        pl_tex_destroy(p->gpu, &p->tex_in[i]);
-        pl_tex_destroy(p->gpu, &p->tex_out[i]);
+        if (p->tex_in[i])
+            pl_tex_destroy(p->gpu, &p->tex_in[i]);
+        if (p->tex_out[i])
+            pl_tex_destroy(p->gpu, &p->tex_out[i]);
+        if (p->el_tex[i])
+            pl_tex_destroy(p->gpu, &p->el_tex[i]);
     }
 
     pl_renderer_destroy(&p->rr);
@@ -99,22 +103,25 @@ VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI
                              "min_luma:float:opt;"
                              "log_level:int:opt;", "clip:vnode;", VSPlaceboResampleCreate, 0, plugin);
 
-    vspapi->registerFunction("Tonemap", "clip:vnode;"
-                            "src_csp:int:opt;dst_csp:int:opt;"
-                            "dst_prim:int:opt;"
-                            "src_max:float:opt;src_min:float:opt;"
-                            "dst_max:float:opt;dst_min:float:opt;"
-                            "dynamic_peak_detection:int:opt;smoothing_period:float:opt;"
-                            "scene_threshold_low:float:opt;scene_threshold_high:float:opt;"
-                            "percentile:float:opt;"
-                            "gamut_mapping:int:opt;"
-                            "tone_mapping_function:int:opt;tone_mapping_function_s:data:opt;"
-                            "tone_mapping_param:float:opt;"
-                            "metadata:int:opt;"
-                            "use_dovi:int:opt;"
-                            "visualize_lut:int:opt;show_clipping:int:opt;"
-                            "contrast_recovery:float:opt;"
-                            "log_level:int:opt;", "clip:vnode;", VSPlaceboTMCreate, 0, plugin);
+    vspapi->registerFunction("Tonemap",
+                             "clip:vnode;"
+                             "src_csp:int:opt;dst_csp:int:opt;"
+                             "dst_prim:int:opt;"
+                             "src_max:float:opt;src_min:float:opt;"
+                             "dst_max:float:opt;dst_min:float:opt;"
+                             "dynamic_peak_detection:int:opt;smoothing_period:float:opt;"
+                             "scene_threshold_low:float:opt;scene_threshold_high:float:opt;"
+                             "percentile:float:opt;"
+                             "gamut_mapping:int:opt;"
+                             "tone_mapping_function:int:opt;tone_mapping_function_s:data:opt;"
+                             "tone_mapping_param:float:opt;"
+                             "metadata:int:opt;"
+                             "use_dovi:int:opt;"
+                             "dovi_el:vnode:opt;"
+                             "visualize_lut:int:opt;show_clipping:int:opt;"
+                             "contrast_recovery:float:opt;"
+                             "log_level:int:opt;",
+                             "clip:vnode;", VSPlaceboTMCreate, 0, plugin);
 
     vspapi->registerFunction("Shader", "clip:vnode;shader:data:opt;width:int:opt;height:int:opt;chroma_loc:int:opt;matrix:int:opt;trc:int:opt;"
                            "linearize:int:opt;sigmoidize:int:opt;sigmoid_center:float:opt;sigmoid_slope:float:opt;"

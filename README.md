@@ -64,6 +64,7 @@ placebo.Tonemap(
     tone_mapping_param: float | None = None,
     metadata: int = 0,
     use_dovi: bool | None = None,
+    dovi_el: vs.VideoNode | None = None,
     visualize_lut: bool = False,
     show_clipping: bool = False,
     contrast_recovery: float = 0.0,
@@ -177,6 +178,8 @@ Outputs RGB48 or YUV444P16, depending on input color family.
   | 4 | Luminance (CIE Y) |
 - `use_dovi`: Whether to use the Dolby Vision RPU for ST2086 metadata. Defaults
   to true when tonemapping from Dolby Vision.
+- `dovi_el`: Dolby Vision enhancement layer clip. Requires `use_dovi=True`.  
+  Both input and EL clips are expected to be YUV420P16.
 - `visualize_lut`: Display a (PQ-PQ) graph of the active tone-mapping LUT. See
   [mpv docs](https://mpv.io/manual/master/#options-tone-mapping-visualize).
 - `show_clipping`: Highlight hard-clipped pixels during tone-mapping.

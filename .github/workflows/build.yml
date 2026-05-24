@@ -129,7 +129,8 @@ jobs:
 
     - uses: pypa/gh-action-pypi-publish@release/v1
 
-  publish-to-testpy:
+  publish-to-testpypi:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     needs: [build-non-windows-wheel, build-windows-wheel]
     runs-on: ubuntu-latest
     environment:

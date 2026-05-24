@@ -12,25 +12,7 @@
 
 extern pthread_mutex_t vspl_vulkan_mutex;
 
-struct format {
-    int num_comps;
-    int bitdepth;
-};
-
-struct plane {
-    int subx, suby; // subsampling shift
-    struct format fmt;
-    size_t stride;
-    void *data;
-};
-
 #define MAX_PLANES 4
-
-struct image {
-    int width, height;
-    int num_planes;
-    struct plane planes[MAX_PLANES];
-};
 
 struct priv {
     pl_log log;
@@ -42,6 +24,8 @@ struct priv {
     pl_renderer rr;
     pl_tex tex_in[MAX_PLANES];
     pl_tex tex_out[MAX_PLANES];
+
+    pl_tex el_tex[MAX_PLANES];
 };
 
 void *VSPlaceboInit(enum pl_log_level log_level);
