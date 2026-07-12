@@ -1,9 +1,17 @@
 # vs-placebo
 
 [![build](https://github.com/Lypheo/vs-placebo/actions/workflows/build.yml/badge.svg)](https://github.com/Lypheo/vs-placebo/actions/workflows/build.yml)
-![PyPI - Version](https://img.shields.io/pypi/v/vs-placebo)
+[![PyPI - Version](https://img.shields.io/pypi/v/vs-placebo)](https://pypi.org/project/vs-placebo)
 
 A VapourSynth plugin interface to [libplacebo](https://code.videolan.org/videolan/libplacebo).
+
+## Installing
+
+```bash
+pip install vs-placebo
+```
+
+vs-placebo is also on the AUR: [vapoursynth-plugin-placebo-git](https://aur.archlinux.org/packages/vapoursynth-plugin-placebo-git)
 
 ## API
 
@@ -360,25 +368,3 @@ errors are logged.
 | 5     | Debug       |
 | 6     | Trace       |
 | 7     | All         |
-
-## Installing
-
-If you’re on Arch, just do
-
-```bash
-$ yay -S vapoursynth-plugin-placebo-git
-```
-
-Building on Linux using meson:
-
-```bash
-$ meson setup build
-$ ninja -C build
-```
-
-It is not recommended to install the library on the system without using a package manager.  
-Otherwise it's as simple as `DESTDIR= ninja -C build install`.
-
-Building on Linux for Windows:  
-Some experimental build system based on `mpv-winbuild-cmake`: https://github.com/quietvoid/mpv-winbuild-cmake/commits/vs-placebo-libdovi  
-Suggested to use on Arch Linux. YMMV.
