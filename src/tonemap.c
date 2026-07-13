@@ -619,7 +619,7 @@ static void VS_CC VSPlaceboTMFree(void *instanceData, VSCore *core, const VSAPI 
 }
 
 void VS_CC VSPlaceboTMCreate(const VSMap *in, VSMap *out, void *userData, VSCore *core, const VSAPI *vsapi) {
-    TMData d;
+    TMData d = {};
     TMData *tm_data;
     int err;
 
